@@ -23,6 +23,15 @@ using namespace std;
 
 ofstream ofile;
 
+
+/*
+Functions to condense the main() function. 
+The first is "general tridiagonal matrix equation solver."
+The second is "second derivative ----," made for our specific form of the second derivative.
+*/
+void gentridmat_equ_solve(int n, double* a, double* b, double* c, double* v, double* func);
+void secder_tridmat_equ_solve(int n, double* b, double* v, double* func);
+
 int main(int argc, char* argv[]){
 	char* outfilename;
 	int n, i, yesno, j;
@@ -54,7 +63,6 @@ int main(int argc, char* argv[]){
 		cout << "Error allocating dynamic memory. Terminating...\n";
 		exit(1);
 	}
-
 //Initialize array values.
 	for(i=0;i<n;i++){
 		a[i]=(-1.0);
@@ -70,17 +78,8 @@ int main(int argc, char* argv[]){
   End clock
 */
 	start = clock();
-
-	for(i=1;i<n;i++){
-		double temp;
-		temp = a[i]/b[i-1];
-		b[i] -= temp*c[i-1];
-		func[i] -= temp*func[i-1];
-	}
-	v1[n-1]=func[n-1]/b[n-1];
-	for(i=n-2;i>=0;i--){
-		v1[i] = (func[i]-c[i]*v1[i+1])/b[i];
-	}
+	
+	gentridmat_equ_solve(n, a, b, c, v1, func);
 
 	finish = clock();
 	time1 = ( (finish - start)/(double) CLOCKS_PER_SEC);
@@ -99,21 +98,14 @@ int main(int argc, char* argv[]){
 */
 	start = clock();
 
-	for(i=1;i<n;i++){
-		func[i] += func[i-1]/b[i-1];
-	}
-	v2[n-1]=func[n-1]/b[n-1];
-	for(i=n-2;i>=0;i--){
-		v2[i] = (func[i]+v2[i+1])/b[i];
-	}
-
+	secder_tridmat_equ_solve(n, b, v2, func);
+	
 	finish = clock();
 	time2 = ((finish-start)/(double) CLOCKS_PER_SEC);
 
 //Write data file
 	ofile << "#_x_i" << setw(15) << "v1(x_i)" << setw(15) << "v2(x_i)" << setw(15) << "u(x_i)" << setw(15) << "log(error1)" << setw(15) << "log(error2)" << endl;
 	ofile.precision(8);
-	ofile << "1.0000000" << setw(15) << "0.0000000" << setw(15) << "0.0000000" << endl;
 	for(i=n-1;i>=0;i--){
 		double exact, x, error1, error2;
 		x = (i+1)*h;
@@ -122,7 +114,6 @@ int main(int argc, char* argv[]){
 		error2 = log10(abs(v2[i]-exact)/exact);
 		ofile << x << setw(15) << v1[i] << setw(15) << v2[i] << setw(15) << exact << setw(15) << error1 << setw(15) << error2 << endl;
 	}
-	ofile << "0.0000000" << setw(15) << "0.0000000" << setw(15) << "0.000000" << endl;
 
 	ofile.close();
 	
@@ -179,7 +170,31 @@ int main(int argc, char* argv[]){
 		}
 	}
 
-	
-
 	return 0;
 }	
+
+void gentridmat_equ_solve(int n, double* a, double* b, double* c, double* v, double* func){
+	int i;
+	for(i=1;i<n;i++){
+		double temp;
+		temp = a[i]/b[i-1];
+		b[i] -= temp*c[i-1];
+		func[i] -= temp*func[i-1];
+	}
+	v[n-1]=func[n-1]/b[n-1];
+	for(i=n-2;i>=0;i--){
+		v[i] = (func[i]-c[i]*v[i+1])/b[i];
+	}
+}
+
+void secder_tridmat_equ_solve(int n, double* b, double* v, double* func){
+	int i;	
+	for(i=1;i<n;i++){
+		func[i] += func[i-1]/b[i-1];
+	}
+	v[n-1]=func[n-1]/b[n-1];
+	for(i=n-2;i>=0;i--){
+		v[i] = (func[i]+v[i+1])/b[i];
+	}
+}
+

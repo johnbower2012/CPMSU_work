@@ -104,7 +104,7 @@ int main(int argc, char* argv[]){
 	}
 	v2[n-1]=func[n-1]/b[n-1];
 	for(i=n-2;i>=0;i--){
-		v2[i] = (func[i]+v1[i+1])/b[i];
+		v2[i] = (func[i]+v2[i+1])/b[i];
 	}
 
 	finish = clock();
@@ -133,7 +133,7 @@ int main(int argc, char* argv[]){
 
 	delete[] a, b, c, v1, v2, func;
 
-//Compute error for varying step counts
+//Compute error for varying step counts, if desired
 	if(yesno==1){
 		ofile.open("error.dat");
 		ofile.precision(8);
