@@ -141,7 +141,7 @@ int main(int argc, char* argv[]){
 		double exact, x, temp, error;
 		int k;
 		for(j=0;j<5;j++){
-			for(k=2;k=<10;k++){
+			for(k=2;k<=10;k++){
 				n = k*pow(10,j);
 				double* b = new (nothrow) double[n];
 				double* func = new (nothrow) double[n];
