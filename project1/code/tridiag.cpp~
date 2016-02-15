@@ -165,7 +165,11 @@ simply perform one loop and output the data itself.
 //Write data file
 
 		if(timer_data_nofile==2){
-			ofile.precision(6);			
+			ofile.precision(6);
+			if(k==1){
+				ofile << "#_n" << setw(15) << "log10(n)" << setw(15) << "time_gen" << setw(15);
+				ofile << "log10(time_gen)" << setw(15) << "time_our" << setw(15) << "log10(time_our)" << endl;	
+			}						
 			ofile << n << setw(15) << log10(n) << setw(15) << time1 << setw(15)<< log10(time1) << setw(15) << time2 << setw(15) << log10(time2) << endl;
 		}
 		else if(timer_data_nofile==1){
@@ -179,14 +183,6 @@ simply perform one loop and output the data itself.
 				ofile << x << setw(15) << v1[i] << setw(15) << v2[i] << setw(15) << exact << endl;
 			}
 			ofile << "0" << setw(15) << "0" << setw(15) << "0" << endl;
-		}
-		else if(timer_data_nofile==0){
-			ofile.precision(6);		
-			if(k==1){
-				ofile << "#_n" << setw(15) << "log10(n)" << setw(15) << "time_gen" << setw(15);
-				ofile << "log10(time_gen)" << setw(15) << "time_our" << setw(15) << "log10(time_our)" << endl;	
-			}			
-			ofile << n << setw(15) << time1 << setw(15) << time2 << endl;
 		}
 		
 		Array_dealloc(a); Array_dealloc(b); Array_dealloc(c);

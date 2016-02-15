@@ -254,6 +254,13 @@ simply perform one loop and output the data itself.
 	return 0;
 }	
 
+
+
+
+/**************************
+Begin function definitions
+***************************/
+
 void Array_alloc(double*& a, int length){
 	a = new double[length];
 }

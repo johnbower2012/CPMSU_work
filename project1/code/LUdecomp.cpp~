@@ -154,7 +154,7 @@ End computation time
 
 		if(timer_data_nofile==2){
 			ofile.precision(6);
-			if(k==1) ofile << "#_n" << setw(15) << "log10(n)" << setw(15) << "time (s)" << setw(15) << "log10(time)" << endl;
+			if(k==1) ofile << "#_n" << setw(15) << "log10(n)" << setw(15) << "time" << setw(15) << "log10(time)" << endl;
 			ofile << n << setw(15) << log10(n) << setw(15) << time << setw(15) << log10(time) << endl;
 		}		
 		else if(timer_data_nofile==1){

@@ -1,0 +1,23 @@
+Each file in the subfolder 'bm' is an output generated for the specified n and file type.
+
+To execute a file properly, enter on the same line:
+
+	_grid_point_count_(as int)_ 
+	_desired_data/time_output_file_name_
+	_1_or_0_for_'yes'_or_'no'_errorfile_
+	_2_1_0_for_timefile_datafile_nofile_
+
+For example,
+"LUtime5000.dat" was generated with "./LUdecomp.x 5000 LUtime5000.dat 0 2"
+"LU10.dat" was generated with "./LUdecomp.x 10 LU10.dat 0 1" 
+"LUerror.dat" was generated with "./LUdecomp.x 1000 ANY 1 0"
+"tridtime5e7.dat" was generated with "./tridiag.x 50000000 tridtime5e7.dat 0 2"
+"trid10.dat" was generated with "./tridiag.x 10 trid10.dat 0 1"
+"trid_error.dat" was generated with "./tridiag.x 10000000 ANY 1 0"
+
+Both error and time/data files can be generated at once, both using the entry for n:
+
+"./LUdecomp.x 1000 time_file 1 2" will output both an error and time file using n=1000.
+"./tridiag.x 1000 data_file 1 1" will output both an error and data file using n=1000.
+
+Data and time files cannot be generated at once, since they both rely on the same loop.

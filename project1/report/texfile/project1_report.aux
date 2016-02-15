@@ -1,0 +1,36 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyperFirstAtBeginDocument{\AtBeginDocument}
+\HyperFirstAtBeginDocument{\ifx\hyper@anchor\@undefined
+\global\let\oldcontentsline\contentsline
+\gdef\contentsline#1#2#3#4{\oldcontentsline{#1}{#2}{#3}}
+\global\let\oldnewlabel\newlabel
+\gdef\newlabel#1#2{\newlabelxx{#1}#2}
+\gdef\newlabelxx#1#2#3#4#5#6{\oldnewlabel{#1}{{#2}{#3}}}
+\AtEndDocument{\ifx\hyper@anchor\@undefined
+\let\contentsline\oldcontentsline
+\let\newlabel\oldnewlabel
+\fi}
+\fi}
+\global\let\hyper@last\relax 
+\gdef\HyperFirstAtBeginDocument#1{#1}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Theory}{2}{section.2}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Methodology}{3}{section.3}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.1}LU Decomposition}{3}{subsection.3.1}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.2}General Tridiagonal}{5}{subsection.3.2}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {3.3}Case Specific Solver}{6}{subsection.3.3}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Results}{6}{section.4}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces We plot the results for $\mathaccentV {hat}05E{v}$ from each methodology using n=10. Note that each is nearly indistinguishable from each other; they are in fact the same to several decimal places despite all being too low.}}{7}{figure.1}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Discussion}{7}{section.5}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces We plot the results for $\mathaccentV {hat}05E{v}$ from each methodology using n=20. Obersve how even at this low count for the number of grid points, we are quickly converging to the analytical solution. Note that each is nearly indistinguishable from each other; they are in fact the same to several decimal places despite all being too low.}}{8}{figure.2}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces We plot the results for $\mathaccentV {hat}05E{v}$ from each methodology using n=50. Now only the highest points are distinguishable from the exact solutions. Note that each is nearly indistinguishable from each other.}}{9}{figure.3}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces We plot the results for $\mathaccentV {hat}05E{v}$ from each methodology using n=100. The numeric solutions now agree with the analytical comparison to several decimal places. Note that each is nearly indistinguishable from each other.}}{10}{figure.4}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces We plot the results for $\mathaccentV {hat}05E{v}$ from the specific tridiagonal solver using n=10, 20, and 50 to demonstrate the convergence. The specific tridiagonal was selected since it is the fastest and most stable algorithm, while also printing identical (to several decimal places) results to the others.}}{11}{figure.5}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces A table comparing the computation times of the three algorithms for various n. Note that as n increases, LU decomposition becomes mired in computation and quickly runs for lengthy periods of time, whereas both tridiagonal solvers only pass one second computation times for n=$10^7$, before which point they've already lost stability (see Figure (7)). The general tridiagonal solver's time is typically only one-third again as large as the specific tridiagonal. This is likely because the computations it performs beyond those from the specific algorithm are not nearly as intensive as those which overlap, multiplying or dividing by (-1), for example, when including the $a_i$ and $c_i$ values.}}{12}{figure.6}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces A plot of $log_{10}(time)$ versus $log_{10}(n)$ to demonstrate how computation time scales with the choice of n. Note that the slope for LU decomposition can be seen to be approximately three, indicating good agreement with our predicting scaling of a factor times $n^3$. Similarly, the slopes for both tridiagonal solvers are about one, in agreement with our prediction of a factor times $n^1$ for each. It is clear that both tridiagonal solvers are significantly faster than LU decomposition, with our specific solver being the fastest overall.}}{13}{figure.7}}
+\@writefile{lof}{\contentsline {figure}{\numberline {8}{\ignorespaces A plot of $log_{10}(errors)$ versus $log_{10}(h)$. Note that for large h, or small n, the errors are nearly identical and scale as $h^2$, as we'd expect from our common approximation for the second derivative. The discrepancies arise when the accumulation of round off errors causes the function to lose stability. The specific tridiagonal solver loses stability the latest, post $10^5$ grid points. The general solver, as a result of performing more calculations, loses stability sooner, between n = $10^4$ and n = $10^5$. I was unable to run LU decomp for large enough n to find where it loses stability, but from the trend it would likely be sooner than either tridiagonal method due to the larger number of computations.}}{14}{figure.8}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Conclusion}{15}{section.6}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}References}{15}{section.7}}
