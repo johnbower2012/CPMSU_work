@@ -11,73 +11,100 @@ void array_delete(double*& a);
 void matrix_delete(double**& A, int rows);
 void symmat_offdiag_max(double**& A, int size, double& a_max, int& row, int& column);
 void jacobi_simrot_eigen_solver(double**& A, double**& R, int size, double tolerance);
+void array_print(double*& a, int length);
 void matrix_print(double**& A, int rows, int columns);
 void matrix_print_mult(double**& A, double**& B, int rowsA, int columnsA, int columnsB);
+void matrix_diag_sort(double**& A, double**&B, int size);
+
+ofstream ofile;
 
 int main(int argc, char* argv[]){
-	double** A, **R, **A2;
-	double a_max, a_kk, a_ll, a_ik, a_il, r_ik, r_il;
-	double tau, cos, sin, tan, tolerance, var; 
-	int i, j, k, l, rows, columns;
-	a_max = 1;
+	double** A, **R, **A2, **eigenvalues;
+	char* outfilename;
+	double tolerance, var, var1, var2;
+	double h, h_sq, rho, rho_sq, rho_max, rho_min;
+	double temp = 0.0;
+	int i, j, k, rows, columns, n, eigvec_yesno;
 	tolerance = 1e-10;
-//Check proper entry arguments	
-	if(argc<2){
-		cout << "Bad usage. Enter also matrix_size on same line." << endl;
+//Check proper entry arguments
+	if(argc<6){
+		cout << "Bad usage. Enter also rho_max rho_min matrix_size outfilename of_1_0 on same line." << endl;
 		exit(1);
 	}
 	else{
-		rows = atoi(argv[1]);
+		rho_max = atof(argv[1]);
+		rho_min = atof(argv[2]);
+		n = atoi(argv[3]);
+		outfilename = argv[4];
+		eigvec_yesno = atoi(argv[5]);
+		rows = n-1;
 		columns = rows;
+		h = (rho_max - rho_min)/((double) n);
+		h_sq = (h*h);
+		var1 = 2.0/h_sq;
+		var2 = -1.0/h_sq;
 	}
 //allocate matrices
+	matrix_alloc(eigenvalues,rows, 2);
 	matrix_alloc(A, rows, columns);
 	matrix_alloc(A2, rows, columns);
 	matrix_alloc(R, rows, columns);
 //Initialize matrices
 	for(i=0;i<rows;i++){
+		rho = rho_min + (i+1)*h;
+		rho_sq = rho*rho;
+		eigenvalues[i][0] = 0.0;
+		eigenvalues[i][1] = 0;
 		for(j=0;j<columns;j++){
 			if(i==j){
-				A[i][j] = 2.0; 
-				A2[i][j] = 2.0; 
-				R[i][j] = 1.0;			
+				A[i][j] = var1 + rho_sq;
+				A2[i][j] = A[i][j];
+				R[i][j] = 1.0;
+			}
+			else if(i==j+1||i==j-1){
+				A[i][j] = var2;
+				A2[i][j] = A[i][j];
 			}
 			else{
-				A[i][j] = 1.0;
-				A2[i][j] = 1.0;
+				A[i][j] = 0.0;
+				A2[i][j] = 0.0;
 				R[i][j] = 0.0;
 			}
 		}
-	}
-//conduct similarity rotations until 
-	jacobi_simrot_eigen_solver(A,R,rows, tolerance);
+	}	
 
+//conduct similarity rotations until all offdiag elements < tolerance.
+	jacobi_simrot_eigen_solver(A,R,rows,tolerance);
+//Sort the eigenvalues from A from smallest to largest and note original positions
+	matrix_diag_sort(A,eigenvalues,rows);
 
-	cout << "\nMatrix A:\n";
-	matrix_print(A2,rows,columns);
-	cout << "\nMatrix D:\n";
-	matrix_print(A,rows,columns);
-	cout << "\nMatrix R:\n";
-	matrix_print(R,rows,columns);
-	cout << "\nMatrix lambdaR:\n";
-	for(i=0;i<rows;i++){
-		for(j=0;j<columns;j++){
-			cout << A[j][j]*R[i][j] << '\t';
+//Open output file
+	ofile.open(outfilename);
+	ofile.precision(6);
+	if(eigvec_yesno==1){
+		ofile << "#_i" << setw(15) << "eigenvalues" << setw(12) << "rho_i";
+		for(i=0;i<rows;i++){
+			ofile << setw(15) << "v_" << i;
 		}
-		cout << '\n';
-	}
-	cout << "\nMatrix A*R:\n";
-	matrix_print_mult(A2,R,rows,columns,columns);
-	cout << '\n';
-	for(i=0;i<rows;i++){
-		var = 0.0;
-		for(j=0;j<rows;j++){
-			var += R[i][j]*R[i][j];
+		ofile << endl;
+		for(i=0;i<rows;i++){
+			ofile << fixed << i << setw(15) << eigenvalues[i][0] << setw(15) << scientific << rho_min + h*(i+1);
+			for(j=0;j<columns;j++){
+				k=eigenvalues[j][1];
+				ofile << setw(15) << R[i][k];
+			}
+			ofile << endl;
 		}
-		var = sqrt(var);
-		cout << "Unit test for eigenvector" << i+1 << ": " << var << '\n';
 	}
-	cout << '\n';
+	else if(eigvec_yesno==0){
+		ofile << "#_i" << setw(15) << "eigenvalues" << setw(15) << "j" << endl;
+		for(i=0;i<rows;i++){
+			ofile << i << setw(15) << eigenvalues[i][0] << setw(15) << eigenvalues[i][1] << endl;
+		}
+	}
+	ofile.close();
+	
+	matrix_delete(eigenvalues,rows);
 	matrix_delete(A2,rows);
 	matrix_delete(A,rows);
 	matrix_delete(R,rows);	
@@ -87,7 +114,9 @@ int main(int argc, char* argv[]){
 }
 
 
-
+/******************************
+Begin function definitions
+*******************************/
 
 
 void array_alloc(double*& a, int length){
@@ -177,9 +206,12 @@ void jacobi_simrot_eigen_solver(double**& A, double**& R, int size, double toler
 		}
 	}
 }
+void array_print(double*& a, int length){
+	for(int i=0;i<length;i++){
+		cout << a[i] << endl;
+	}
+}
 void matrix_print(double**& A, int rows, int columns){
-	cout.precision(6);
-	cout << scientific;
 	for(int i=0;i<rows;i++){
 		for(int j=0;j<columns;j++){
 			cout << A[i][j] << '\t';
@@ -188,8 +220,6 @@ void matrix_print(double**& A, int rows, int columns){
 	}
 }
 void matrix_print_mult(double**& A, double**& B, int rowsA, int columnsA, int columnsB){
-	cout.precision(6);
-	cout << scientific;
 	double var;	
 	for(int i=0;i<rowsA;i++){
 		for(int j=0;j<columnsB;j++){
@@ -202,6 +232,71 @@ void matrix_print_mult(double**& A, double**& B, int rowsA, int columnsA, int co
 		cout << '\n';
 	}
 }
+void matrix_diag_sort(double**& A, double**&B, int size){
+	int i, j, q;	
+	for(i=0;i<size;i++){
+		if(i==0){
+			B[0][0]=A[0][0];
+			B[0][1] = 0;
+		}
+		else{
+			if(A[i][i]>=B[i-1][0]){
+				B[i][0]=A[i][i];
+				B[i][1]=i;
+			}
+			else{
+				for(j=0;j<i;j++){
+					if(A[i][i]<B[j][0]){
+						for(q=i;q>j;q--){
+							B[q][0] = B[q-1][0];
+							B[q][1] = B[q-1][1];
+						}
+						B[j][0] = A[i][i];
+						B[j][1] = i;
+						break;
+					}
+				}
+			}
+		}
+	}	
+}
 
 
+/**********************************************************
+Print matrices to screen to test for reliability visually
+**********************************************************/
 
+/***************************************************************************************
+	cout.precision(6);
+	cout << "\nMatrix A:\n";
+	matrix_print(A2,rows,columns);
+	cout << "\nMatrix D:\n";
+	matrix_print(A,rows,columns);
+	cout << scientific;
+	cout << "\nMatrix R:\n";
+	matrix_print(R,rows,columns);
+	cout << "\nMatrix lambdaR:\n";
+	for(i=0;i<rows;i++){
+		for(j=0;j<columns;j++){
+			cout << A[j][j]*R[i][j] << '\t';
+		}
+		cout << '\n';
+	}
+	cout << "\nMatrix A*R:\n";
+	matrix_print_mult(A2,R,rows,columns,columns);
+	cout << '\n';
+	for(i=0;i<rows;i++){
+		var = 0.0;
+		for(j=0;j<rows;j++){
+			var += R[i][j]*R[i][j];
+		}
+		var = sqrt(var);
+		cout << "Unit test for eigenvector" << i+1 << ": " << var << '\n';
+	}
+	cout << fixed;
+	cout << "\nEigenvalues:\n";
+	for(i=0;i<rows;i++){
+		cout << lambda[i] << endl;
+	}
+	cout << endl;
+****************************************************************************************/
