@@ -1,0 +1,9 @@
+The benchmarks provided here use the following descriptive format:
+
+for		eigensolver.cpp:
+		# of electrons_rho max_matrix size.dat
+
+		eigensolver_eigentime.cpp:
+		# of electrons_eig OR time file_omega 005=0.05, etc_rho max.dat
+		'm' can be viewed from opening the file
+

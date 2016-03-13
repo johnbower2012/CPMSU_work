@@ -1,0 +1,34 @@
+\relax 
+\providecommand\hyper@newdestlabel[2]{}
+\providecommand\HyperFirstAtBeginDocument{\AtBeginDocument}
+\HyperFirstAtBeginDocument{\ifx\hyper@anchor\@undefined
+\global\let\oldcontentsline\contentsline
+\gdef\contentsline#1#2#3#4{\oldcontentsline{#1}{#2}{#3}}
+\global\let\oldnewlabel\newlabel
+\gdef\newlabel#1#2{\newlabelxx{#1}#2}
+\gdef\newlabelxx#1#2#3#4#5#6{\oldnewlabel{#1}{{#2}{#3}}}
+\AtEndDocument{\ifx\hyper@anchor\@undefined
+\let\contentsline\oldcontentsline
+\let\newlabel\oldnewlabel
+\fi}
+\fi}
+\global\let\hyper@last\relax 
+\gdef\HyperFirstAtBeginDocument#1{#1}
+\providecommand\HyField@AuxAddToFields[1]{}
+\providecommand\HyField@AuxAddToCoFields[2]{}
+\@writefile{toc}{\contentsline {section}{\numberline {1}Introduction}{1}{section.1}}
+\@writefile{toc}{\contentsline {section}{\numberline {2}Theory}{2}{section.2}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.1}Formulation of the Three Cases}{2}{subsection.2.1}}
+\@writefile{toc}{\contentsline {subsection}{\numberline {2.2}Discretization and the Eigenvalue Problem}{4}{subsection.2.2}}
+\@writefile{toc}{\contentsline {section}{\numberline {3}Methodology}{5}{section.3}}
+\@writefile{toc}{\contentsline {section}{\numberline {4}Results}{7}{section.4}}
+\@writefile{lof}{\contentsline {figure}{\numberline {1}{\ignorespaces A table for the one electron case displaying the number of similarity rotations, the time for my code, the time for armadillo's solver, and the numeric value for the eigenvalues, which are identical between my code and the armadillo function. A matrix size of 400 is required for our choice of $\rho _{max}$, five, in order to match the exact solutions to four decimal places. The number of similarity rotations required scales as approximately 1.7-1.8$n^2$. While the eigenvalues are identical to seven digits between the two solvers, my own code is inefficient and takes between 100-200 times as long when compared with the armadillo solver. The brute force approach can clearly be significantly refined.}}{8}{figure.1}}
+\@writefile{toc}{\contentsline {section}{\numberline {5}Discussion}{8}{section.5}}
+\@writefile{lof}{\contentsline {figure}{\numberline {2}{\ignorespaces A table comparing the effects of $\rho _{max}$ on the resulting eigenvalue for two electrons with omega equal to 0.05. The exact solution, given in the paper by M. Taut in the references, is 0.35. It is clear that the choice of $\rho _{max}$ is important and greatly influences the resulting convergence. It is important to choose a $\rho _{max}$ after which the eigenvector has gone to and will stay at zero (numerically); yet, if one increases too far beyond this value then an increase in the matrix size is needed in order to keep the step size, $h$, small. Too large an $n$ results in long computation times. Thus, a balance must be struck with $\rho _{max}$, it should be large enough for the desired eigenvector to be zeroed yet not much larger so that $n$ may be kept small. The point may be found visually by plotting the resulting eigenvector. It is clear that in this case $\rho _{max}$=10 provides the best and most efficient results when compared with the rest presented.}}{9}{figure.2}}
+\@writefile{lof}{\contentsline {figure}{\numberline {3}{\ignorespaces Here we see a comparison of the lowest eigenvectors for a single electron a harmonic potential. Note that the numbering, 0, 1, 2, ..., is useful since it marks the number of nodes present within the specified eigenfunction. As the number increases, the function slowly moves farther away from the center.}}{10}{figure.3}}
+\@writefile{lof}{\contentsline {figure}{\numberline {4}{\ignorespaces Here we see a comparison of two electrons within a harmonic well, omega equal to 5.0. Note how the electrons are tightly bound when compared with the subsequent, lower values of omega. Additionally, though the cases of repulsion versus no repulsion are quite similar, we see that the with repulsion case is slightly farther out, as we'd expect. It is clear that repulsion plays a smaller role as the well becomes steeper.}}{11}{figure.4}}
+\@writefile{lof}{\contentsline {figure}{\numberline {5}{\ignorespaces Here we see a comparison of two electrons within a harmonic well, omega equal to 1.0. Note how the electrons have moved to slightly higher values of rho, and that the case with repulsion is now slightly more distrinct than with omega equal to 5.0. Again, it is farther out, account for the idea that repulsion "pushes" them farther apart.}}{12}{figure.5}}
+\@writefile{lof}{\contentsline {figure}{\numberline {6}{\ignorespaces Here we see a comparison of two electrons within a harmonic well, omega equal to 0.5. Note how the electrons have moved to larger values of rho, and that the case with repulsion is now even more distrinct than with omega equal to 5.0 or 1.0. It is once more farther out than the case of no repulsion.}}{13}{figure.6}}
+\@writefile{lof}{\contentsline {figure}{\numberline {7}{\ignorespaces Here we see a comparison of two electrons within a harmonic well, omega equal to 0.01. The electrons have now moved to significantly higher values of rho. The case of repulsion is even more separate from the case without and it is also farther from the center. As the well lessens, it is clear that repulsion plays a much larger role. As omega goes to zero, the electrons continue to move farther apart, to where omega is zero and they move to be infinitely far apart.}}{14}{figure.7}}
+\@writefile{toc}{\contentsline {section}{\numberline {6}Conclusion}{15}{section.6}}
+\@writefile{toc}{\contentsline {section}{\numberline {7}References}{15}{section.7}}
