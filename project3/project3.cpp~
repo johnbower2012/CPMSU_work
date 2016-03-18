@@ -17,6 +17,7 @@ class massivebody{
 		double velocity[3];
 		massivebody();
 		massivebody(double, double, double, double, double, double, double);
+		massivebody(massivebody, double, double, double, double, double, double, double);
 };
 
 class massivesystem{
@@ -50,12 +51,33 @@ int main(int argc, char* argv[]){
 		tmax = atof(argv[3]);
 	}
 	double** output;
-	massivebody earth(3.00251e-6,1,0,0,0,2.0*M_PI,0);
+
 	massivebody sun(1,0,0,0,0,0,0);
+	massivebody mercury(1.6596e-7,0,0.3871,0,1.590*2.0*M_PI,0,0);
+	massivebody venus(2.4471e-6,0.723,0,0,0,-1.176*2.0*M_PI,0);
+	massivebody earth(3.00251e-6,1,0,0,0,2.0*M_PI,0);
+	massivebody moon(earth, 3.69415e-8, 2.57e-3, 0, 0, 0, 0, 0.034*2.0*M_PI);
+	massivebody mars(3.2262e-7,0,0,1.5236,0.808*2.0*M_PI,0,0);
 	massivebody jupiter(9.95424e-4,5.4,0,0,0,0,-0.438*2.0*M_PI);
+	massivebody saturn(2.8573e-4,0,0,9.537,0,-0.324*2.0*M_PI,0);
+	massivebody uranus(4.3638e-5,19.2,0,0,0,0.228*2.0*M_PI,0);
+	massivebody neptune(5.1488e-5,0,30.070,0,0,0,0.182*2.0*M_PI);
+	massivebody pluto(6.5812e-9,0,0,39.52,0,0.157*2.0*M_PI,0);
+	massivebody roguestar(1,-500,0,0,50,0,0);
+
 	massivesystem solarsystem;
-	solarsystem.add(earth);
 	solarsystem.add(sun);
+	solarsystem.add(mercury);
+	solarsystem.add(venus);
+	solarsystem.add(earth);
+	solarsystem.add(moon);
+	solarsystem.add(mars);
+	solarsystem.add(jupiter);
+	solarsystem.add(saturn);
+	solarsystem.add(neptune);
+	solarsystem.add(uranus);
+	solarsystem.add(pluto);
+	solarsystem.add(roguestar);
 
 	verlet(solarsystem,output,steps,tmax);
 	bodies = solarsystem.massivebody_count;
@@ -114,7 +136,15 @@ massivebody::massivebody(double Mass, double x, double y, double z, double vx, d
 	velocity[1] = vy;
 	velocity[2] = vz;
 }
-
+massivebody::massivebody(massivebody primary, double Mass, double x, double y, double z, double vx, double vy, double vz){
+	mass = Mass;
+	position[0] = primary.position[0] + x;
+	position[1] = primary.position[1] + y;
+	position[2] = primary.position[2] + z;
+	velocity[0] = primary.velocity[0] + vx;
+	velocity[1] = primary.velocity[1] + vy;
+	velocity[2] = primary.velocity[2] + vz;
+}
 massivesystem::massivesystem(){
 	massivebody_count = 0;
 	system = nullptr;
