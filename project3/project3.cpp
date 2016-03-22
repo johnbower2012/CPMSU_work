@@ -46,8 +46,8 @@ ofstream ofile;
 
 int main(int argc, char* argv[]){
 	char* outfilename;
-	int steps, i, j, method;
-	double tmax, bodies;
+	int steps, i, j, method, bodies;
+	double tmax;
 	if(argc<5){
 		cout << "Bad usage. Enter also 'outfilename method_choice steps tmax' on same line." << endl;
 		exit(1);
@@ -87,6 +87,9 @@ int main(int argc, char* argv[]){
 	solarsystem.add(pluto);*/
 	//solarsystem.add(roguestar);
 
+
+
+	bodies = solarsystem.massivebody_count;
 	if(method==1){
 		verlet(solarsystem,output,steps,tmax);
 	}
@@ -94,14 +97,13 @@ int main(int argc, char* argv[]){
 		RK4(solarsystem,output,steps,tmax);
 	}
 	else if(method==3){
-		double* mass = new double[solarsystem.massivebody_count];
+		double* mass = new double[bodies];
 		solarsystem.initialize(solarsystem, output, mass, steps);
-		verlet(output,mass,solarsystem.massivebody_count,steps,tmax);
+		verlet(output,mass,bodies,steps,tmax);
 		delete[] mass;
 	}
 
 	ofile.open(outfilename);
-	bodies = solarsystem.massivebody_count;
 	for(i=0;i<steps+1;i++){
 		for(j=0;j<bodies*6+1;j++){
 			ofile << setw(15) << output[i][j];
@@ -116,6 +118,11 @@ int main(int argc, char* argv[]){
 	delete[] output;
 	return 0;
 }
+
+
+/**************************
+Begin function definitions
+***************************/
 
 
 void array_alloc(double*& a, int length){
@@ -613,7 +620,7 @@ void RK4(massivesystem& sol, double**& output, int steps, double tmax){
 			}
 		}
 	}
-	//initialize forces
+	//initialize forces (k1v)
 	for(j=0;j<bodies;j++){
 		for(k=0;k<bodies;k++){
 			if(j!=k){
@@ -639,17 +646,14 @@ void RK4(massivesystem& sol, double**& output, int steps, double tmax){
 
 	//Begin RK4 loop
 	for(i=0;i<steps;i++){
-		//calculate first positions [1+1/2] (k1)
+		//calculate first positions [1+1/2]
+		// (using k1x)
 		for(j=0;j<bodies;j++){
 			output[i+1][j*6+1] = output[i][j*6+1] + halfh*output[i][j*6+4];
 			output[i+1][j*6+2] = output[i][j*6+2] + halfh*output[i][j*6+5];
 			output[i+1][j*6+3] = output[i][j*6+3] + halfh*output[i][j*6+6];
-			cout << setw(15) << output[i+1][j*6+1];
-			cout << setw(15) << output[i+1][j*6+2];
-			cout << setw(15) << output[i+1][j*6+3];
 		}
-cout << endl;
-		//new relative positions at [i+1/2] (k2)
+		//new relative positions at [i+1/2]
 		for(m=0;m<bodies;m++){
 			for(n=0;n<bodies;n++){
 				if(m!=n){
@@ -676,27 +680,24 @@ cout << endl;
 			force[1][j*3] *= fourpisq;
 			force[1][j*3+1] *= fourpisq;
 			force[1][j*3+2] *= fourpisq;
+			//k2v
 			k2[j*6+3] = force[1][j*3];
 			k2[j*6+4] = force[1][j*3+1];
 			k2[j*6+5] = force[1][j*3+2];
 		}
-		//k2 using i+1/2 positions
+		//k2x using i+1/2 positions
 		for(j=0;j<bodies;j++){
 			k2[j*6] = output[i][j*6+4] + halfh*force[1][j*3];
 			k2[j*6+1] = output[i][j*6+5] + halfh*force[1][j*3+1];
 			k2[j*6+2] = output[i][j*6+6] + halfh*force[1][j*3+2];
 		}
-		//new temp positions at i+1/2 with k2
+		//new temp positions at i+1/2 with k2x
 		for(j=0;j<bodies;j++){
 			output[i+1][j*6+1] = output[i][j*6+1] + halfh*k2[j*6];
 			output[i+1][j*6+2] = output[i][j*6+2] + halfh*k2[j*6+1];
 			output[i+1][j*6+3] = output[i][j*6+3] + halfh*k2[j*6+2];
-			cout << setw(15) << output[i+1][j*6+1];
-			cout << setw(15) << output[i+1][j*6+2];
-			cout << setw(15) << output[i+1][j*6+3];
 		}
-cout << endl;
-		//new relative positions at [i+1/2] (k3)
+		//new relative positions at [i+1/2] with k2x
 		for(m=0;m<bodies;m++){
 			for(n=0;n<bodies;n++){
 				if(m!=n){
@@ -723,27 +724,24 @@ cout << endl;
 			force[1][j*3] *= fourpisq;
 			force[1][j*3+1] *= fourpisq;
 			force[1][j*3+2] *= fourpisq;
+			//k3v
 			k3[j*6+3] = force[1][j*3];
 			k3[j*6+4] = force[1][j*3+1];
 			k3[j*6+5] = force[1][j*3+2];
 		}
-		//k3 using i+1/2 positions
+		//k3x using i+1/2 positions
 		for(j=0;j<bodies;j++){
 			k3[j*6] = output[i][j*6+4] + halfh*force[1][j*3];
 			k3[j*6+1] = output[i][j*6+5] + halfh*force[1][j*3+1];
 			k3[j*6+2] = output[i][j*6+6] + halfh*force[1][j*3+2];
 		}
-		//new temp positions at i+1 k3
+		//new temp positions at i+1 using k3x
 		for(j=0;j<bodies;j++){
 			output[i+1][j*6+1] = output[i][j*6+1] + h*k3[j*6];
 			output[i+1][j*6+2] = output[i][j*6+2] + h*k3[j*6+1];
 			output[i+1][j*6+3] = output[i][j*6+3] + h*k3[j*6+2];
-			cout << setw(15) << output[i+1][j*6+1];
-			cout << setw(15) << output[i+1][j*6+2];
-			cout << setw(15) << output[i+1][j*6+3];
 		}
-cout << endl;
-		//new relative positions at [i+1] (k4)
+		//new relative positions at [i+1] with k3x
 		for(m=0;m<bodies;m++){
 			for(n=0;n<bodies;n++){
 				if(m!=n){
@@ -770,26 +768,29 @@ cout << endl;
 			force[1][j*3] *= fourpisq;
 			force[1][j*3+1] *= fourpisq;
 			force[1][j*3+2] *= fourpisq;
+			//k4v
 			k4[j*6+3] = force[1][j*3];
 			k4[j*6+4] = force[1][j*3+1];
 			k4[j*6+5] = force[1][j*3+2];
 		}
-		//k4 using i+1/2 positions
+		//k4x using i+1/2 positions
 		for(j=0;j<bodies;j++){
-			output[i+1][j*6+4] = output[i][j*6+4] + halfh*force[1][j*3];
-			output[i+1][j*6+5] = output[i][j*6+5] + halfh*force[1][j*3+1];
-			output[i+1][j*6+6] = output[i][j*6+6] + halfh*force[1][j*3+2];
+			output[i+1][j*6+4] = output[i][j*6+4] + h*force[1][j*3];
+			output[i+1][j*6+5] = output[i][j*6+5] + h*force[1][j*3+1];
+			output[i+1][j*6+6] = output[i][j*6+6] + h*force[1][j*3+2];
 		}
 		//final positions at i+1
 		for(j=0;j<bodies;j++){
 			output[i+1][j*6+1] = output[i][j*6+1] + (h/6.0)*(output[i][j*6+4] + 2.0*k2[j*6] + 2.0*k3[j*6] + output[i+1][j*6+4]);
 			output[i+1][j*6+2] = output[i][j*6+2] + (h/6.0)*(output[i][j*6+5] + 2.0*k2[j*6+1] + 2.0*k3[j*6+1] + output[i+1][j*6+5]);
 			output[i+1][j*6+3] = output[i][j*6+3] + (h/6.0)*(output[i][j*6+6] + 2.0*k2[j*6+2] + 2.0*k3[j*6+2] + output[i+1][j*6+6]);
-			cout << setw(15) << output[i+1][j*6+1];
-			cout << setw(15) << output[i+1][j*6+2];
-			cout << setw(15) << output[i+1][j*6+3];
+		}	
+		//final velocities at i+1
+		for(j=0;j<bodies;j++){
+			output[i+1][j*6+4] = output[i][j*6+4] + (h/6.0)*(force[0][j*3] + 2.0*k2[j*6+3] + 2.0*k3[j*6+3] + force[1][j*3]);
+			output[i+1][j*6+5] = output[i][j*6+5] + (h/6.0)*(force[0][j*3+1] + 2.0*k2[j*6+4] + 2.0*k3[j*6+4] + force[1][j*3+1]);
+			output[i+1][j*6+6] = output[i][j*6+6] + (h/6.0)*(force[0][j*3+2] + 2.0*k2[j*6+5] + 2.0*k3[j*6+5] + force[1][j*3+2]);
 		}
-cout << endl;		
 		//final relative positions at i+1
 		for(m=0;m<bodies;m++){
 			for(n=0;n<bodies;n++){
@@ -817,12 +818,6 @@ cout << endl;
 			force[1][j*3] *= fourpisq;
 			force[1][j*3+1] *= fourpisq;
 			force[1][j*3+2] *= fourpisq;
-		}
-		//final velocities at i+1
-		for(j=0;j<bodies;j++){
-			output[i+1][j*6+4] = output[i][j*6+4] + (h/6.0)*(force[0][j*3] + 2.0*k2[j*6+3] + 2.0*k3[j*6+3] + force[1][j*3]);
-			output[i+1][j*6+5] = output[i][j*6+5] + (h/6.0)*(force[0][j*3+1] + 2.0*k2[j*6+4] + 2.0*k3[j*6+4] + force[1][j*3+1]);
-			output[i+1][j*6+6] = output[i][j*6+6] + (h/6.0)*(force[0][j*3+2] + 2.0*k2[j*6+5] + 2.0*k3[j*6+5] + force[1][j*3+2]);
 		}
 		for(j=0;j<bodies;j++){
 			force[0][j*3] = force[1][j*3];

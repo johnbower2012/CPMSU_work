@@ -46,8 +46,8 @@ ofstream ofile;
 
 int main(int argc, char* argv[]){
 	char* outfilename;
-	int steps, i, j, method;
-	double tmax, bodies;
+	int steps, i, j, method, bodies;
+	double tmax;
 	if(argc<5){
 		cout << "Bad usage. Enter also 'outfilename method_choice steps tmax' on same line." << endl;
 		exit(1);
@@ -87,6 +87,9 @@ int main(int argc, char* argv[]){
 	solarsystem.add(pluto);*/
 	//solarsystem.add(roguestar);
 
+
+
+	bodies = solarsystem.massivebody_count;
 	if(method==1){
 		verlet(solarsystem,output,steps,tmax);
 	}
@@ -94,14 +97,13 @@ int main(int argc, char* argv[]){
 		RK4(solarsystem,output,steps,tmax);
 	}
 	else if(method==3){
-		double* mass = new double[solarsystem.massivebody_count];
+		double* mass = new double[bodies];
 		solarsystem.initialize(solarsystem, output, mass, steps);
-		verlet(output,mass,solarsystem.massivebody_count,steps,tmax);
+		verlet(output,mass,bodies,steps,tmax);
 		delete[] mass;
 	}
 
 	ofile.open(outfilename);
-	bodies = solarsystem.massivebody_count;
 	for(i=0;i<steps+1;i++){
 		for(j=0;j<bodies*6+1;j++){
 			ofile << setw(15) << output[i][j];
@@ -116,6 +118,11 @@ int main(int argc, char* argv[]){
 	delete[] output;
 	return 0;
 }
+
+
+/**************************
+Begin function definitions
+***************************/
 
 
 void array_alloc(double*& a, int length){
@@ -348,10 +355,6 @@ void verlet(double**& output, double*& mass, int bodies, int steps, double tmax)
 		force[0][j*3] *= fourpisq;
 		force[0][j*3+1] *= fourpisq;
 		force[0][j*3+2] *= fourpisq;
-		cout << setw(15) << force[0][j*3];
-		cout << setw(15) << force[0][j*3+1];
-		cout << setw(15) << force[0][j*3+2];
-		cout << endl;
 	}
 	//begin solution for-loop
 	for(i=0;i<steps;i++){
@@ -648,11 +651,7 @@ void RK4(massivesystem& sol, double**& output, int steps, double tmax){
 			output[i+1][j*6+1] = output[i][j*6+1] + halfh*output[i][j*6+4];
 			output[i+1][j*6+2] = output[i][j*6+2] + halfh*output[i][j*6+5];
 			output[i+1][j*6+3] = output[i][j*6+3] + halfh*output[i][j*6+6];
-			cout << setw(15) << output[i+1][j*6+1];
-			cout << setw(15) << output[i+1][j*6+2];
-			cout << setw(15) << output[i+1][j*6+3];
 		}
-cout << endl;
 		//new relative positions at [i+1/2] (k2)
 		for(m=0;m<bodies;m++){
 			for(n=0;n<bodies;n++){
@@ -695,11 +694,7 @@ cout << endl;
 			output[i+1][j*6+1] = output[i][j*6+1] + halfh*k2[j*6];
 			output[i+1][j*6+2] = output[i][j*6+2] + halfh*k2[j*6+1];
 			output[i+1][j*6+3] = output[i][j*6+3] + halfh*k2[j*6+2];
-			cout << setw(15) << output[i+1][j*6+1];
-			cout << setw(15) << output[i+1][j*6+2];
-			cout << setw(15) << output[i+1][j*6+3];
 		}
-cout << endl;
 		//new relative positions at [i+1/2] (k3)
 		for(m=0;m<bodies;m++){
 			for(n=0;n<bodies;n++){
@@ -742,11 +737,7 @@ cout << endl;
 			output[i+1][j*6+1] = output[i][j*6+1] + h*k3[j*6];
 			output[i+1][j*6+2] = output[i][j*6+2] + h*k3[j*6+1];
 			output[i+1][j*6+3] = output[i][j*6+3] + h*k3[j*6+2];
-			cout << setw(15) << output[i+1][j*6+1];
-			cout << setw(15) << output[i+1][j*6+2];
-			cout << setw(15) << output[i+1][j*6+3];
 		}
-cout << endl;
 		//new relative positions at [i+1] (k4)
 		for(m=0;m<bodies;m++){
 			for(n=0;n<bodies;n++){
@@ -789,11 +780,7 @@ cout << endl;
 			output[i+1][j*6+1] = output[i][j*6+1] + (h/6.0)*(output[i][j*6+4] + 2.0*k2[j*6] + 2.0*k3[j*6] + output[i+1][j*6+4]);
 			output[i+1][j*6+2] = output[i][j*6+2] + (h/6.0)*(output[i][j*6+5] + 2.0*k2[j*6+1] + 2.0*k3[j*6+1] + output[i+1][j*6+5]);
 			output[i+1][j*6+3] = output[i][j*6+3] + (h/6.0)*(output[i][j*6+6] + 2.0*k2[j*6+2] + 2.0*k3[j*6+2] + output[i+1][j*6+6]);
-			cout << setw(15) << output[i+1][j*6+1];
-			cout << setw(15) << output[i+1][j*6+2];
-			cout << setw(15) << output[i+1][j*6+3];
-		}
-cout << endl;		
+		}	
 		//final relative positions at i+1
 		for(m=0;m<bodies;m++){
 			for(n=0;n<bodies;n++){
