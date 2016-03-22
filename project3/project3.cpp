@@ -9,6 +9,8 @@ void array_alloc(double*& a, int length);
 void array_delete(double*& a);
 void matrix_alloc(double**&, int, int);
 void matrix_delete(double*&, int);
+void rel_coord(double**&, double*, int);
+
 
 class massivebody{
 	public:
@@ -30,25 +32,31 @@ class massivesystem{
 		massivesystem();
 		~massivesystem();
 		void add(massivebody guy);
+		void relpositions(massivesystem&, double**&);
+		void forces(massivesystem&, double*&, const double**&);
+		void initialize(massivesystem&, double**&, double*&, int);
 		void print();
 };
 
+void verlet(double**&, double*&, int, int, double);
 void verlet(massivesystem&, double**&, int, double);
+void RK4(massivesystem&, double**&, int, double);
 
 ofstream ofile;
 
 int main(int argc, char* argv[]){
 	char* outfilename;
-	int steps, i, j;
+	int steps, i, j, method;
 	double tmax, bodies;
-	if(argc<4){
-		cout << "Bad usage. Enter also 'outfilename steps tmax' on same line." << endl;
+	if(argc<5){
+		cout << "Bad usage. Enter also 'outfilename method_choice steps tmax' on same line." << endl;
 		exit(1);
 	}
 	else{
 		outfilename = argv[1];
-		steps = atoi(argv[2]);
-		tmax = atof(argv[3]);
+		method = atoi(argv[2]);
+		steps = atoi(argv[3]);
+		tmax = atof(argv[4]);
 	}
 	double** output;
 
@@ -67,22 +75,33 @@ int main(int argc, char* argv[]){
 
 	massivesystem solarsystem;
 	solarsystem.add(sun);
-	solarsystem.add(mercury);
-	solarsystem.add(venus);
+/*	solarsystem.add(mercury);
+	solarsystem.add(venus); */
 	solarsystem.add(earth);
-	solarsystem.add(moon);
+/*	solarsystem.add(moon);
 	solarsystem.add(mars);
 	solarsystem.add(jupiter);
 	solarsystem.add(saturn);
 	solarsystem.add(neptune);
 	solarsystem.add(uranus);
-	solarsystem.add(pluto);
+	solarsystem.add(pluto);*/
 	//solarsystem.add(roguestar);
 
-	verlet(solarsystem,output,steps,tmax);
-	bodies = solarsystem.massivebody_count;
+	if(method==1){
+		verlet(solarsystem,output,steps,tmax);
+	}
+	else if(method==2){
+		RK4(solarsystem,output,steps,tmax);
+	}
+	else if(method==3){
+		double* mass = new double[solarsystem.massivebody_count];
+		solarsystem.initialize(solarsystem, output, mass, steps);
+		verlet(output,mass,solarsystem.massivebody_count,steps,tmax);
+		delete[] mass;
+	}
 
 	ofile.open(outfilename);
+	bodies = solarsystem.massivebody_count;
 	for(i=0;i<steps+1;i++){
 		for(j=0;j<bodies*6+1;j++){
 			ofile << setw(15) << output[i][j];
@@ -96,8 +115,8 @@ int main(int argc, char* argv[]){
 	}
 	delete[] output;
 	return 0;
-
 }
+
 
 void array_alloc(double*& a, int length){
 	a = new double[length];
@@ -195,6 +214,202 @@ void massivesystem::print(){
 	for(int i=0;i<3;i++){
 		cout << "vel[" << i<< "]=" << setw(15) << comvelocity[i] << endl;
 	}
+}
+
+void rel_coord(double**& relcoord, double** output, int i, int bodies){
+	int m, n;
+	for(m=0;m<bodies;m++){
+		for(n=0;n<bodies;n++){
+			if(m!=n){
+				relcoord[m][n*4] = output[i][m*6+1] - output[i][n*6+1];
+				relcoord[m][n*4+1] = output[i][m*6+2] - output[i][n*6+2];
+				relcoord[m][n*4+2] = output[i][m*6+3] - output[i][n*6+3];
+				relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
+			}
+		}
+	}	
+}
+void massivesystem::relpositions(massivesystem& sol, double**& relcoord){
+	int i, j;	
+	int bodies = sol.massivebody_count;
+	for(i=0;i<bodies;i++){
+		for(j=0;j<bodies;j++){
+			if(i!=j){
+				relcoord[i][j*4] = sol.system[i].position[0] - sol.system[j].position[0];
+				relcoord[i][j*4+1] = sol.system[i].position[1] - sol.system[j].position[1];
+				relcoord[i][j*4+2] = sol.system[i].position[2] - sol.system[j].position[2];
+				relcoord[i][j*4+3] = sqrt(relcoord[i][j*4]*relcoord[i][j*4] + relcoord[i][j*4+1]*relcoord[i][j*4+1]+relcoord[i][j*4+2]*relcoord[i][j*4+2]);
+			}
+		}
+	}
+}
+void massivesystem::forces(massivesystem& sol, double*& force, const double**& relcoord){
+	int j, k;
+	int bodies = sol.massivebody_count;
+	double rcubed, fourpisq;
+	fourpisq = 4.0*M_PI*M_PI;
+	for(j=0;j<bodies;j++){
+		force[j*3] = 0.0;
+		force[j*3+1] = 0.0;
+		force[j*3+2] = 0.0;
+	}
+	for(j=0;j<bodies;j++){
+		for(k=0;k<bodies;k++){
+			if(j!=k){
+				rcubed = pow(relcoord[j][k*4+3],3.0);
+				force[j*3] += -sol.system[k].mass*relcoord[j][k*4]/rcubed;
+				force[j*3+1] += -sol.system[k].mass*relcoord[j][k*4+1]/rcubed;
+				force[j*3+2] += -sol.system[k].mass*relcoord[j][k*4+2]/rcubed;
+			}
+		}
+		force[j*3] *= fourpisq;
+		force[j*3+1] *= fourpisq;
+		force[j*3+2] *= fourpisq;
+	}
+}
+void massivesystem::initialize(massivesystem& sol, double**& output, double*& mass, int steps){
+	int i, j;
+	int bodies = sol.massivebody_count;
+	output = new double*[steps+1];
+	mass = new double[bodies];
+	for(int i=0;i<steps+1;i++){
+		output[i] = new double[bodies*6+1];
+	}
+	for(j=0;j<bodies;j++){
+		mass[j] = sol.system[j].mass;
+		output[0][j*6+1] = sol.system[j].position[0];
+		output[0][j*6+2] = sol.system[j].position[1];
+		output[0][j*6+3] = sol.system[j].position[2];
+		output[0][j*6+4] = sol.system[j].velocity[0];
+		output[0][j*6+5] = sol.system[j].velocity[1];
+		output[0][j*6+6] = sol.system[j].velocity[2];
+	}
+	for(i=1;i<steps+1;i++){
+		for(j=0;j<bodies;j++){
+			output[i][j*6+1] = 0;
+			output[i][j*6+2] = 0;
+			output[i][j*6+3] = 0;
+			output[i][j*6+4] = 0;
+			output[i][j*6+5] = 0;
+			output[i][j*6+6] = 0;
+		}
+	}
+}
+void verlet(double**& output, double*& mass, int bodies, int steps, double tmax){
+	int i, j, k, m, n;
+	double h, halfh, halfhsq, rcubed, fourpisq;
+	h = (tmax-0.0)/((double) (steps));
+	halfh = 0.5*h;
+	halfhsq = halfh*h;	
+	fourpisq = 4.0*M_PI*M_PI;
+	//relcoord to provide relative coordinates, x, y, z, r, of body i with respect to body j
+	//technically double counting--consider revising
+	double** relcoord = new double*[bodies];
+	for(i=0;i<bodies;i++){
+		relcoord[i] = new double[bodies*4];
+	}
+	//force provides fx,fy,fz for each body at step i and i+1
+	double** force = new double*[2];
+	for(i=0;i<2;i++){
+		force[i] = new double[bodies*3];
+	}
+	//initialize all matrices to zero
+	for(i=0;i<bodies;i++){
+		for(j=0;j<bodies*4;j++){
+			relcoord[i][j]=0.0;
+		}
+	}
+	for(i=0;i<2;i++){
+		for(j=0;j<bodies*3;j++){
+			force[i][j]=0.0;
+		}
+	}
+	//reinitialize relcoord to initial conditions
+	for(m=0;m<bodies;m++){
+		for(n=0;n<bodies;n++){
+			if(m!=n){
+				relcoord[m][n*4] = output[0][m*6+1] - output[0][n*6+1];
+				relcoord[m][n*4+1] = output[0][m*6+2] - output[0][n*6+2];
+				relcoord[m][n*4+2] = output[0][m*6+3] - output[0][n*6+3];
+				relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
+			}
+		}
+	}
+	//initialize forces
+	for(j=0;j<bodies;j++){
+		for(k=0;k<bodies;k++){
+			if(j!=k){
+				rcubed = pow(relcoord[j][k*4+3],3.0);
+				force[0][j*3] += -mass[k]*relcoord[j][k*4]/rcubed;
+				force[0][j*3+1] += -mass[k]*relcoord[j][k*4+1]/rcubed;
+				force[0][j*3+2] += -mass[k]*relcoord[j][k*4+2]/rcubed;
+			}
+		}
+		force[0][j*3] *= fourpisq;
+		force[0][j*3+1] *= fourpisq;
+		force[0][j*3+2] *= fourpisq;
+	}
+	//begin solution for-loop
+	for(i=0;i<steps;i++){
+		//Set next time value
+		output[i+1][0] = output[i][0] + h;
+		//calculate x,y,z		
+		for(j=0;j<bodies;j++){
+			output[i+1][j*6+1] = output[i][j*6+1] + h*output[i][j*6+4] + halfhsq*force[0][j*3];
+			output[i+1][j*6+2] = output[i][j*6+2] + h*output[i][j*6+5] + halfhsq*force[0][j*3+1];
+			output[i+1][j*6+3] = output[i][j*6+3] + h*output[i][j*6+6] + halfhsq*force[0][j*3+2];
+		}
+		//new relcoord
+		for(m=0;m<bodies;m++){
+			for(n=0;n<bodies;n++){
+				if(m!=n){
+					relcoord[m][n*4] = output[i+1][m*6+1] - output[i+1][n*6+1];
+					relcoord[m][n*4+1] = output[i+1][m*6+2] - output[i+1][n*6+2];
+					relcoord[m][n*4+2] = output[i+1][m*6+3] - output[i+1][n*6+3];
+					relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
+				}
+			}
+		}
+		//calculate force_i+1
+		for(j=0;j<bodies*3;j++){
+			force[1][j] = 0.0;
+		}
+		for(j=0;j<bodies;j++){
+			for(k=0;k<bodies;k++){
+				if(j!=k){
+					rcubed = pow(relcoord[j][k*4+3],3.0);
+					force[1][j*3] += -mass[k]*relcoord[j][k*4]/rcubed;
+					force[1][j*3+1] += -mass[k]*relcoord[j][k*4+1]/rcubed;
+					force[1][j*3+2] += -mass[k]*relcoord[j][k*4+2]/rcubed;
+				}
+			}
+			force[1][j*3] *= fourpisq;
+			force[1][j*3+1] *= fourpisq;
+			force[1][j*3+2] *= fourpisq;
+		}
+		//calculate vx, vy, vz
+		for(j=0;j<bodies;j++){
+			output[i+1][j*6+4] = output[i][j*6+4] + halfh*(force[1][j*3] + force[0][j*3]);
+			output[i+1][j*6+5] = output[i][j*6+5] + halfh*(force[1][j*3+1] + force[0][j*3+1]);
+			output[i+1][j*6+6] = output[i][j*6+6] + halfh*(force[1][j*3+2] + force[0][j*3+2]);
+		}
+		//force_i for next loop is force_i+1 for this loop. No need for double computation.
+		for(j=0;j<bodies;j++){
+			force[0][j*3] = force[1][j*3];
+			force[0][j*3+1] = force[1][j*3+1];
+			force[0][j*3+2] = force[1][j*3+2];
+		}
+	}
+	//delete dross--keep output
+	for(i=0;i<bodies;i++){
+		delete[] relcoord[i];
+	}
+	delete[] relcoord;
+	for(i=0;i<2;i++){
+		delete[] force[i];
+	}
+	delete[] force;
+
 }
 void verlet(massivesystem& sol, double**& output, int steps, double tmax){
 	int i, j, k, m, n, bodies;
@@ -333,6 +548,303 @@ void verlet(massivesystem& sol, double**& output, int steps, double tmax){
 	}
 	delete[] force;
 
+}
+void RK4(massivesystem& sol, double**& output, int steps, double tmax){
+	int i, j, k, m, n, bodies;
+	bodies = sol.massivebody_count;
+	double h, halfh, halfhsq, rcubed, fourpisq;
+	double* k1, *k2, *k3, *k4;
+	h = (tmax-0.0)/((double) (steps));
+	halfh = 0.5*h;
+	halfhsq = halfh*h;	
+	fourpisq = 4.0*M_PI*M_PI;
+	//placeholders arrays
+	k1 = new double[bodies*6];
+	k2 = new double[bodies*6];
+	k3 = new double[bodies*6];
+	k4 = new double[bodies*6];
+	for(i=0;i<bodies*6;i++){
+		k1[i] = 0;
+		k2[i] = 0;
+		k3[i] = 0;
+		k4[i] = 0;
+	}			
+	//output to provide t and x, y, z, vx, vy, vz for each body at each step i
+	output = new double*[steps+1];	
+	for(int i=0;i<steps+1;i++){
+		output[i] = new double[bodies*6+1];
+	}
+	//relcoord to provide relative coordinates, x, y, z, r, of body i with respect to body j
+	//technically double counting--consider revising
+	double** relcoord = new double*[bodies];
+	for(i=0;i<bodies;i++){
+		relcoord[i] = new double[bodies*4];
+	}
+	//force provides fx,fy,fz for each body at step i and i+1
+	double** force = new double*[2];
+	for(i=0;i<2;i++){
+		force[i] = new double[bodies*3];
+	}
+	//initialize all matrices to zero
+	for(i=0;i<steps+1;i++){
+		for(j=0;j<bodies*6+1;j++){
+			output[i][j]=0.0;
+		}
+	}
+	for(i=0;i<bodies;i++){
+		for(j=0;j<bodies*4;j++){
+			relcoord[i][j]=0.0;
+		}
+	}
+	for(i=0;i<2;i++){
+		for(j=0;j<bodies*3;j++){
+			force[i][j]=0.0;
+		}
+	}
+
+	//reinitialize relcoord to initial conditions	
+	for(i=0;i<bodies;i++){
+		for(j=0;j<bodies;j++){
+			if(i!=j){
+				relcoord[i][j*4] = sol.system[i].position[0] - sol.system[j].position[0];
+				relcoord[i][j*4+1] = sol.system[i].position[1] - sol.system[j].position[1];
+				relcoord[i][j*4+2] = sol.system[i].position[2] - sol.system[j].position[2];
+				relcoord[i][j*4+3] = sqrt(relcoord[i][j*4]*relcoord[i][j*4] + relcoord[i][j*4+1]*relcoord[i][j*4+1]+relcoord[i][j*4+2]*relcoord[i][j*4+2]);
+			}
+		}
+	}
+	//initialize forces
+	for(j=0;j<bodies;j++){
+		for(k=0;k<bodies;k++){
+			if(j!=k){
+				rcubed = pow(relcoord[j][k*4+3],3.0);
+				force[0][j*3] += -sol.system[k].mass*relcoord[j][k*4]/rcubed;
+				force[0][j*3+1] += -sol.system[k].mass*relcoord[j][k*4+1]/rcubed;
+				force[0][j*3+2] += -sol.system[k].mass*relcoord[j][k*4+2]/rcubed;
+			}
+		}
+		force[0][j*3] *= fourpisq;
+		force[0][j*3+1] *= fourpisq;
+		force[0][j*3+2] *= fourpisq;
+	}
+	//initialize initial conditions for output
+	for(j=0;j<bodies;j++){
+		output[0][j*6+1] = sol.system[j].position[0];
+		output[0][j*6+2] = sol.system[j].position[1];
+		output[0][j*6+3] = sol.system[j].position[2];
+		output[0][j*6+4] = sol.system[j].velocity[0];
+		output[0][j*6+5] = sol.system[j].velocity[1];
+		output[0][j*6+6] = sol.system[j].velocity[2];
+	}
+
+	//Begin RK4 loop
+	for(i=0;i<steps;i++){
+		//calculate first positions [1+1/2] (k1)
+		for(j=0;j<bodies;j++){
+			output[i+1][j*6+1] = output[i][j*6+1] + halfh*output[i][j*6+4];
+			output[i+1][j*6+2] = output[i][j*6+2] + halfh*output[i][j*6+5];
+			output[i+1][j*6+3] = output[i][j*6+3] + halfh*output[i][j*6+6];
+			cout << setw(15) << output[i+1][j*6+1];
+			cout << setw(15) << output[i+1][j*6+2];
+			cout << setw(15) << output[i+1][j*6+3];
+		}
+cout << endl;
+		//new relative positions at [i+1/2] (k2)
+		for(m=0;m<bodies;m++){
+			for(n=0;n<bodies;n++){
+				if(m!=n){
+					relcoord[m][n*4] = output[i+1][m*6+1] - output[i+1][n*6+1];
+					relcoord[m][n*4+1] = output[i+1][m*6+2] - output[i+1][n*6+2];
+					relcoord[m][n*4+2] = output[i+1][m*6+3] - output[i+1][n*6+3];
+					relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
+				}
+			}
+		}
+		//new forces with relative positions
+		for(j=0;j<bodies*3;j++){
+			force[1][j] = 0.0;
+		}
+		for(j=0;j<bodies;j++){
+			for(k=0;k<bodies;k++){
+				if(j!=k){
+					rcubed = pow(relcoord[j][k*4+3],3.0);
+					force[1][j*3] += -sol.system[k].mass*relcoord[j][k*4]/rcubed;
+					force[1][j*3+1] += -sol.system[k].mass*relcoord[j][k*4+1]/rcubed;
+					force[1][j*3+2] += -sol.system[k].mass*relcoord[j][k*4+2]/rcubed;
+				}
+			}
+			force[1][j*3] *= fourpisq;
+			force[1][j*3+1] *= fourpisq;
+			force[1][j*3+2] *= fourpisq;
+			k2[j*6+3] = force[1][j*3];
+			k2[j*6+4] = force[1][j*3+1];
+			k2[j*6+5] = force[1][j*3+2];
+		}
+		//k2 using i+1/2 positions
+		for(j=0;j<bodies;j++){
+			k2[j*6] = output[i][j*6+4] + halfh*force[1][j*3];
+			k2[j*6+1] = output[i][j*6+5] + halfh*force[1][j*3+1];
+			k2[j*6+2] = output[i][j*6+6] + halfh*force[1][j*3+2];
+		}
+		//new temp positions at i+1/2 with k2
+		for(j=0;j<bodies;j++){
+			output[i+1][j*6+1] = output[i][j*6+1] + halfh*k2[j*6];
+			output[i+1][j*6+2] = output[i][j*6+2] + halfh*k2[j*6+1];
+			output[i+1][j*6+3] = output[i][j*6+3] + halfh*k2[j*6+2];
+			cout << setw(15) << output[i+1][j*6+1];
+			cout << setw(15) << output[i+1][j*6+2];
+			cout << setw(15) << output[i+1][j*6+3];
+		}
+cout << endl;
+		//new relative positions at [i+1/2] (k3)
+		for(m=0;m<bodies;m++){
+			for(n=0;n<bodies;n++){
+				if(m!=n){
+					relcoord[m][n*4] = output[i+1][m*6+1] - output[i+1][n*6+1];
+					relcoord[m][n*4+1] = output[i+1][m*6+2] - output[i+1][n*6+2];
+					relcoord[m][n*4+2] = output[i+1][m*6+3] - output[i+1][n*6+3];
+					relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
+				}
+			}
+		}
+		//new forces with relative positions
+		for(j=0;j<bodies*3;j++){
+			force[1][j] = 0.0;
+		}
+		for(j=0;j<bodies;j++){
+			for(k=0;k<bodies;k++){
+				if(j!=k){
+					rcubed = pow(relcoord[j][k*4+3],3.0);
+					force[1][j*3] += -sol.system[k].mass*relcoord[j][k*4]/rcubed;
+					force[1][j*3+1] += -sol.system[k].mass*relcoord[j][k*4+1]/rcubed;
+					force[1][j*3+2] += -sol.system[k].mass*relcoord[j][k*4+2]/rcubed;
+				}
+			}
+			force[1][j*3] *= fourpisq;
+			force[1][j*3+1] *= fourpisq;
+			force[1][j*3+2] *= fourpisq;
+			k3[j*6+3] = force[1][j*3];
+			k3[j*6+4] = force[1][j*3+1];
+			k3[j*6+5] = force[1][j*3+2];
+		}
+		//k3 using i+1/2 positions
+		for(j=0;j<bodies;j++){
+			k3[j*6] = output[i][j*6+4] + halfh*force[1][j*3];
+			k3[j*6+1] = output[i][j*6+5] + halfh*force[1][j*3+1];
+			k3[j*6+2] = output[i][j*6+6] + halfh*force[1][j*3+2];
+		}
+		//new temp positions at i+1 k3
+		for(j=0;j<bodies;j++){
+			output[i+1][j*6+1] = output[i][j*6+1] + h*k3[j*6];
+			output[i+1][j*6+2] = output[i][j*6+2] + h*k3[j*6+1];
+			output[i+1][j*6+3] = output[i][j*6+3] + h*k3[j*6+2];
+			cout << setw(15) << output[i+1][j*6+1];
+			cout << setw(15) << output[i+1][j*6+2];
+			cout << setw(15) << output[i+1][j*6+3];
+		}
+cout << endl;
+		//new relative positions at [i+1] (k4)
+		for(m=0;m<bodies;m++){
+			for(n=0;n<bodies;n++){
+				if(m!=n){
+					relcoord[m][n*4] = output[i+1][m*6+1] - output[i+1][n*6+1];
+					relcoord[m][n*4+1] = output[i+1][m*6+2] - output[i+1][n*6+2];
+					relcoord[m][n*4+2] = output[i+1][m*6+3] - output[i+1][n*6+3];
+					relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
+				}
+			}
+		}
+		//new forces with relative positions
+		for(j=0;j<bodies*3;j++){
+			force[1][j] = 0.0;
+		}
+		for(j=0;j<bodies;j++){
+			for(k=0;k<bodies;k++){
+				if(j!=k){
+					rcubed = pow(relcoord[j][k*4+3],3.0);
+					force[1][j*3] += -sol.system[k].mass*relcoord[j][k*4]/rcubed;
+					force[1][j*3+1] += -sol.system[k].mass*relcoord[j][k*4+1]/rcubed;
+					force[1][j*3+2] += -sol.system[k].mass*relcoord[j][k*4+2]/rcubed;
+				}
+			}
+			force[1][j*3] *= fourpisq;
+			force[1][j*3+1] *= fourpisq;
+			force[1][j*3+2] *= fourpisq;
+			k4[j*6+3] = force[1][j*3];
+			k4[j*6+4] = force[1][j*3+1];
+			k4[j*6+5] = force[1][j*3+2];
+		}
+		//k4 using i+1/2 positions
+		for(j=0;j<bodies;j++){
+			output[i+1][j*6+4] = output[i][j*6+4] + halfh*force[1][j*3];
+			output[i+1][j*6+5] = output[i][j*6+5] + halfh*force[1][j*3+1];
+			output[i+1][j*6+6] = output[i][j*6+6] + halfh*force[1][j*3+2];
+		}
+		//final positions at i+1
+		for(j=0;j<bodies;j++){
+			output[i+1][j*6+1] = output[i][j*6+1] + (h/6.0)*(output[i][j*6+4] + 2.0*k2[j*6] + 2.0*k3[j*6] + output[i+1][j*6+4]);
+			output[i+1][j*6+2] = output[i][j*6+2] + (h/6.0)*(output[i][j*6+5] + 2.0*k2[j*6+1] + 2.0*k3[j*6+1] + output[i+1][j*6+5]);
+			output[i+1][j*6+3] = output[i][j*6+3] + (h/6.0)*(output[i][j*6+6] + 2.0*k2[j*6+2] + 2.0*k3[j*6+2] + output[i+1][j*6+6]);
+			cout << setw(15) << output[i+1][j*6+1];
+			cout << setw(15) << output[i+1][j*6+2];
+			cout << setw(15) << output[i+1][j*6+3];
+		}
+cout << endl;		
+		//final relative positions at i+1
+		for(m=0;m<bodies;m++){
+			for(n=0;n<bodies;n++){
+				if(m!=n){
+					relcoord[m][n*4] = output[i+1][m*6+1] - output[i+1][n*6+1];
+					relcoord[m][n*4+1] = output[i+1][m*6+2] - output[i+1][n*6+2];
+					relcoord[m][n*4+2] = output[i+1][m*6+3] - output[i+1][n*6+3];
+					relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
+				}
+			}
+		}
+		//final forces with relative positions
+		for(j=0;j<bodies*3;j++){
+			force[1][j] = 0.0;
+		}
+		for(j=0;j<bodies;j++){
+			for(k=0;k<bodies;k++){
+				if(j!=k){
+					rcubed = pow(relcoord[j][k*4+3],3.0);
+					force[1][j*3] += -sol.system[k].mass*relcoord[j][k*4]/rcubed;
+					force[1][j*3+1] += -sol.system[k].mass*relcoord[j][k*4+1]/rcubed;
+					force[1][j*3+2] += -sol.system[k].mass*relcoord[j][k*4+2]/rcubed;
+				}
+			}
+			force[1][j*3] *= fourpisq;
+			force[1][j*3+1] *= fourpisq;
+			force[1][j*3+2] *= fourpisq;
+		}
+		//final velocities at i+1
+		for(j=0;j<bodies;j++){
+			output[i+1][j*6+4] = output[i][j*6+4] + (h/6.0)*(force[0][j*3] + 2.0*k2[j*6+3] + 2.0*k3[j*6+3] + force[1][j*3]);
+			output[i+1][j*6+5] = output[i][j*6+5] + (h/6.0)*(force[0][j*3+1] + 2.0*k2[j*6+4] + 2.0*k3[j*6+4] + force[1][j*3+1]);
+			output[i+1][j*6+6] = output[i][j*6+6] + (h/6.0)*(force[0][j*3+2] + 2.0*k2[j*6+5] + 2.0*k3[j*6+5] + force[1][j*3+2]);
+		}
+		for(j=0;j<bodies;j++){
+			force[0][j*3] = force[1][j*3];
+			force[0][j*3+1] = force[1][j*3+1];
+			force[0][j*3+2] = force[1][j*3+2];
+		}
+
+	}
+
+	//delete dross--keep output
+	for(i=0;i<bodies;i++){
+		delete[] relcoord[i];
+	}
+	delete[] relcoord;
+	for(i=0;i<2;i++){
+		delete[] force[i];
+	}
+	delete[] force;
+	delete[] k1;
+	delete[] k2;
+	delete[] k3;
+	delete[] k4;
 }
 
 /*	double* x, *y, *r, *vx, *vy, *v;
