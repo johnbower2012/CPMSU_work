@@ -1,0 +1,13 @@
+import time
+import numpy as np
+import matplotlib.pyplot as pl
+
+pl.axis([0,1000,0,1])
+pl.ion()
+pl.show()
+
+for i in range(1000):
+	y= np.random.random()
+	pl.scatter(i,y)
+	pl.draw()
+	time.sleep(0.05)

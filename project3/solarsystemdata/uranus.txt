@@ -1,0 +1,121 @@
+*******************************************************************************
+ Revised: Jan 08, 2014                Uranus                                799
+ 
+ PHYSICAL DATA (updated 2009-May-26):
+  Mass (10^24 kg)       =    86.8103      Density (g/cm^3)       =  1.318
+  Equat. radius (1 bar) = 25559+-4 km     Polar radius (km)      = 24973+-20
+  Volumetric mean radius= 25362+-12 km    Flattening             =  0.02293
+
+  Rotation period       = 17.24+-0.01 hr  Rot. rate(10^-4 rad/s) =  1.012   
+  m = w^2a^3/GM         =  0.02954        Hydrostatic flat., fh  =  0.01987
+  Inferred rot. period  = 17.14+-0.9 hr   ks = 3*J2/m            =  0.357
+  Mom. of inert. I/MRo^2=  0.225          I/MRo^2 (upper bound)  =  0.232 
+  Rocky core mass (Mc/M)=  0.0012         Y factor (He/H ratio)  =  0.262+-.048
+
+  GM (km^3/s^2)         = 5,793,966       GM 1-sigma( km^3/s^2)  = +-23
+  Equ. grav, ge (m/s^2) =  8.87           Pol. grav, gp (m/s^2)  =  9.19+-0.02
+
+  Geometric albedo      =  0.51           Visual magnitude V(1,0)= -7.19
+  Vis. mag. (opposition)= +5.52           Obliquity to orbit     = 97.86 deg
+  Sidereal orbit period = 84.016846 yr    Sidereal orbit period  = 30687.153 d
+  Mean daily motion     = 0.01176904 dg/d Mean orbit velocity    =  6.8352 km/s
+
+  Atmos. temp. (1 bar)  =  76+-2 K        Heat flow/mass (x10^7) = 
+  Planetary Solar Const =   3.71 W/m^2    Dipole tilt/offset     = 58.6dg/0.3Rp 
+  Escape velocity (km/s)=  21.3           Mag.dip.mom(gauss-Rp^3)= 0.23
+  Aroche(ice)/Rp        =  2.20           Hill's sphere rad., Rp = 2700
+*******************************************************************************
+ 
+ 
+*******************************************************************************
+Ephemeris / WWW_USER Tue Mar 22 20:09:56 2016 Pasadena, USA      / Horizons    
+*******************************************************************************
+Target body name: Uranus (799)                    {source: ura111}
+Center body name: Solar System Barycenter (0)     {source: DE431mx}
+Center-site name: BODY CENTER
+*******************************************************************************
+Start time      : A.D. 2016-Mar-18 00:00:00.0000 TDB
+Stop  time      : A.D. 2026-Mar-18 00:00:00.0000 TDB
+Step-size       : 1 calendar years
+*******************************************************************************
+Center geodetic : 0.00000000,0.00000000,0.0000000 {E-lon(deg),Lat(deg),Alt(km)}
+Center cylindric: 0.00000000,0.00000000,0.0000000 {E-lon(deg),Dxy(km),Dz(km)}
+Center radii    : (undefined)                                                  
+Output units    : AU-D                                                         
+Output format   : 02
+Reference frame : ICRF/J2000.0                                                 
+Output type     : GEOMETRIC cartesian states
+Coordinate systm: Ecliptic and Mean Equinox of Reference Epoch                 
+*******************************************************************************
+JDTDB
+   X     Y     Z
+   VX    VY    VZ
+*******************************************************************************
+$$SOE
+2457465.500000000 = A.D. 2016-Mar-18 00:00:00.0000 (TDB)
+   1.876841090026478E+01  6.826065082612249E+00 -2.177966843356428E-01
+  -1.372937790621792E-03  3.512867479374193E-03  3.086802162915850E-05
+2457830.500000000 = A.D. 2017-Mar-18 00:00:00.0000 (TDB)
+   1.822110589637499E+01  8.090279148527980E+00 -2.060100084069346E-01
+  -1.624755702735401E-03  3.411339832141044E-03  3.376087583641553E-05
+2458195.500000000 = A.D. 2018-Mar-18 00:00:00.0000 (TDB)
+   1.758308646298536E+01  9.314214667898694E+00 -1.931981251489455E-01
+  -1.869887218477711E-03  3.292227743082628E-03  3.646279867667830E-05
+2458560.500000000 = A.D. 2019-Mar-18 00:00:00.0000 (TDB)
+   1.685701619670841E+01  1.049151226368285E+01 -1.794190764886288E-01
+  -2.107101776053430E-03  3.155860070652827E-03  3.901847343240660E-05
+2458926.500000000 = A.D. 2020-Mar-18 00:00:00.0000 (TDB)
+   1.604365659039304E+01  1.161894718332303E+01 -1.646945517425912E-01
+  -2.335859014957384E-03  3.002199430995610E-03  4.143708719808461E-05
+2459291.500000000 = A.D. 2021-Mar-18 00:00:00.0000 (TDB)
+   1.515099094110887E+01  1.268427353884155E+01 -1.491733162110865E-01
+  -2.553692582849153E-03  2.832532004930324E-03  4.364204093839960E-05
+2459656.500000000 = A.D. 2022-Mar-18 00:00:00.0000 (TDB)
+   1.418087243514818E+01  1.368475549312954E+01 -1.328894517283626E-01
+  -2.760046142902064E-03  2.646983141899844E-03  4.565527350668401E-05
+2460021.500000000 = A.D. 2023-Mar-18 00:00:00.0000 (TDB)
+   1.313768328056277E+01  1.461470640628537E+01 -1.159209413978758E-01
+  -2.953845231455937E-03  2.446167026256408E-03  4.745186104148357E-05
+2460387.500000000 = A.D. 2024-Mar-18 00:00:00.0000 (TDB)
+   1.202308347448023E+01  1.547090935643003E+01 -9.830139055390665E-02
+  -3.134415919534597E-03  2.230177200568123E-03  4.895568044736680E-05
+2460752.500000000 = A.D. 2025-Mar-18 00:00:00.0000 (TDB)
+   1.084838248725700E+01  1.624351433356982E+01 -8.021424263635245E-02
+  -3.299655236025204E-03  2.001067326120579E-03  5.022773890629946E-05
+2461117.500000000 = A.D. 2026-Mar-18 00:00:00.0000 (TDB)
+   9.616256385729784E+00  1.693013460108746E+01 -6.170287482300599E-02
+  -3.448953793403235E-03  1.759195974302396E-03  5.125495184224930E-05
+$$EOE
+*******************************************************************************
+Coordinate system description:
+
+  Ecliptic and Mean Equinox of Reference Epoch
+
+    Reference epoch: J2000.0
+    xy-plane: plane of the Earth's orbit at the reference epoch
+    x-axis  : out along ascending node of instantaneous plane of the Earth's
+              orbit and the Earth's mean equator at the reference epoch
+    z-axis  : perpendicular to the xy-plane in the directional (+ or -) sense
+              of Earth's north pole at the reference epoch.
+
+Symbol meaning [1 au=149597870.700 km, 1 day=86400.0 s]:
+
+    JDTDB    Epoch Julian Date, Barycentric Dynamical Time
+      X      x-component of position vector (AU)                               
+      Y      y-component of position vector (AU)                               
+      Z      z-component of position vector (AU)                               
+      VX     x-component of velocity vector (AU/day)                           
+      VY     y-component of velocity vector (AU/day)                           
+      VZ     z-component of velocity vector (AU/day)                           
+
+Geometric states/elements have no aberration corrections applied.
+
+ Computations by ...
+     Solar System Dynamics Group, Horizons On-Line Ephemeris System
+     4800 Oak Grove Drive, Jet Propulsion Laboratory
+     Pasadena, CA  91109   USA
+     Information: http://ssd.jpl.nasa.gov/
+     Connect    : telnet://ssd.jpl.nasa.gov:6775  (via browser)
+                  telnet ssd.jpl.nasa.gov 6775    (via command-line)
+     Author     : Jon.Giorgini@jpl.nasa.gov
+*******************************************************************************
