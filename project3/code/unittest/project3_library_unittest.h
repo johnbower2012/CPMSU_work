@@ -8,9 +8,6 @@
 
 using namespace std;
 
-//massivebody contains the mass, positions, and velocities
-//a constructor with a "primary" massivebody is given to create
-//	an orbiting mass around said "primary"
 class massivebody{
 	public:
 		double mass;
@@ -21,12 +18,6 @@ class massivebody{
 		massivebody(massivebody, double, double, double, double, double, double, double);
 };
 
-//massivesystem contains all necessary components to solve for evolution
-//massivebody_count tracks the size of massivebody* system
-//the total mass and Center of Mass positions & velocities are given via
-//	mass_total, composition[4], comvelocity[4]
-//after defining a massive system, 'add' resizes massivebody* and tacks the
-//	new massivebody onto the end
 class massivesystem{
 	public:
 		int massivebody_count;
@@ -43,8 +34,8 @@ class massivesystem{
 		void relpositions(double**&);
 		void forces(double*&, const double**&);
 		void initialize(double**&, double*&, int);
-		void verlet(double**&, int, double, int);
-		void RK4(double**&, int, double, int);
+		void verlet(double**&, int, double, double);
+		void RK4(double**&, int, double, double);
 		void print();
 };
 class vector{
@@ -66,19 +57,197 @@ inline void rel_coord(double**&, double**&, int, int);
 inline void rel_angmomentum(double**&, double**&, int);
 inline void gravityforces(double**&, double**&, double*&, int, int);
 inline void gravityforces_relcorrection(double**&, double**&, double**&, double*&, int, int);
-void verlet(double**&, double*&, int, int, double, int);
-void verlet_relcor(double**&, double*&, int, int, double, int);
+void verlet(double**&, double*&, int, int, double, double);
+void verlet_relcor(double**&, double*&, int, int, double);
 void helionstates(double**&, double**&, double**&, int, int);
+void helionstates_dynamic(double**& aphelion, int& aphguess, double**& perihelion, int& periguess, double**& output, int steps, int body, int range, int dec_or_inc);
 void helionstates_dynamic(double**& aphelion, int& aphguess, double**& perihelion, int& periguess, double**& output, int steps, int body, int range, int dec_or_inc);
 
 /**************************
 Begin function definitions
 ***************************/
 
+inline void array_alloc(double*& a, int length){
+	int i;	
+	a = new double[length];
+	for(i=0;i<length;i++){
+		a[i] = 0.0;
+	}
+}
+inline void array_delete(double*& a){
+	delete[] a;
+}
+inline void array_resize(double*& array, int oldsize, int newsize){
+	double* temp = new double[newsize];
+	for(int i=0;i<oldsize;i++){
+		temp[i]=array[i];
+	}
 
-/*********************
-massivebody functions
-*********************/
+	delete[] array;
+	array = temp;
+}
+inline void matrix_alloc(double**& a, int rows, int columns){
+	int i, j;	
+	a = new double*[rows];
+	for(i=0;i<rows;i++){
+		a[i] = new double[columns];
+	}
+	for(i=0;i<rows;i++){
+		for(j=0;j<columns;j++){
+			a[i][j] = 0.0;
+		}
+	}
+}
+inline void matrix_delete(double**& a, int rows){
+	for(int i=0;i<rows;i++){
+		delete a[i];
+	}
+	delete[] a;
+}
+inline void matrix_resize(double**& matrix, int oldrows, int oldcol, int newrows, int newcol){
+	int i, j;	
+	double** temp = new double*[newrows];
+	for(i=0;i<newrows;i++){
+		temp[i] = new double[newcol];
+	}
+	for(i=0;i<oldrows;i++){
+		for(j=0;j<oldcol;j++){
+			temp[i][j]=matrix[i][j];
+		}
+	}
+
+	for(i=0;i<oldrows;i++){
+		delete[] matrix[i];
+	}
+	delete[] matrix;
+	matrix = temp;
+}
+inline void threeDarray_alloc(double***& a, int d1, int d2, int d3){
+	int i, j, k;	
+	a = new double**[d1];
+	for(i=0;i<d1;i++){
+		a[i] = new double*[d2];
+	}
+	for(i=0;i<d1;i++){
+		for(j=0;j<d2;j++){
+			a[i][j] = new double[d3];
+		}
+	}
+	for(i=0;i<d1;i++){
+		for(j=0;j<d2;j++){
+			for(k=0;k<d3;k++){
+				a[i][j][k] = 0.0;
+			}
+		}
+	}
+	for(i=0;i<d1;i++){
+		for(j=0;j<d2;j++){
+			for(k=0;k<d3;k++){
+				a[i][j][k] = 0.0;
+			}
+		}
+	}
+}
+inline void threeDarray_delete(double***& a, int d1, int d2){
+	int i, j;
+	for(i=0;i<d1;i++){
+		for(j=0;j<d2;j++){
+			delete[] a[i][j];
+		}
+	}
+	for(i=0;i<d1;i++){
+		delete[] a[i];
+	}
+	delete[] a;
+}
+void helionstates_dynamic(double**& aphelion, int& aphguess, double**& perihelion, int& periguess, double**& output, int steps, int body, int range, int dec_or_inc){
+	int i, j, stepcount, aphcount, pericount, rposition, holder0, holder1;
+	double maxtemp[2], mintemp[2], holder[2];
+	rposition = body*8+4;
+
+	for(i=1;i<5;i++){
+		aphelion[0][i] = output[0][body*8+i];	
+		perihelion[0][i] = aphelion[0][i];
+	}
+
+	aphelion[0][0] = output[0][0];
+	perihelion[0][0] = aphelion[0][0];
+	holder[0] = aphelion[0][4];
+	holder[1] = 0;
+
+	stepcount = 0;
+	aphcount=1;
+	pericount=1;	
+	
+	while(stepcount<steps+1){
+		if(aphcount >= aphguess){
+			matrix_resize(aphelion, aphguess, 5, aphcount+1, 5);
+			aphelion[aphcount][0] = -1;
+			for(i=0;i<5;i++){
+				aphelion[aphcount][i] = 0;
+			}
+			aphguess = aphcount+1;
+		}if(pericount >= periguess){
+			matrix_resize(perihelion, periguess, 5, pericount+1, 5);
+			perihelion[pericount][0] = -1;
+			for(i=1;i<5;i++){
+				perihelion[pericount][i] = 0;
+			}
+			periguess = pericount+1;
+		}
+
+		if(dec_or_inc==0){
+			mintemp[0] = holder[0];
+			mintemp[1] = holder[1];
+			for(i=stepcount;i<stepcount+range;i++){
+				if(output[i][rposition]<=mintemp[0]){
+					mintemp[0] = output[i][rposition];
+					mintemp[1] = i;
+				}
+			}
+			if(mintemp[0]<holder[0]){
+				holder[0] = mintemp[0];
+				holder[1] = mintemp[1];
+			}
+			else{
+				dec_or_inc = 1;
+				holder1=holder[1];
+				perihelion[pericount][0] = output[holder1][0];
+				for(i=1;i<5;i++){
+					perihelion[pericount][i] = output[holder1][body*8+i];
+				}	
+				pericount++;
+			}
+		}
+		else if(dec_or_inc==1){
+			maxtemp[0] = holder[0];
+			mintemp[1] = holder[1];
+			for(i=stepcount;i<stepcount+range;i++){
+				if(output[i][rposition]>=maxtemp[0]){
+					maxtemp[0] = output[i][rposition];
+					maxtemp[1] = i;
+				}
+			}
+			if(maxtemp[0]>holder[0]){
+				holder[0] = maxtemp[0];
+				holder[1] = maxtemp[1];
+			}
+			else{
+				dec_or_inc = 0;
+				holder1=holder[1];
+				aphelion[aphcount][0] = output[holder1][0];
+				for(i=1;i<5;i++){			
+					aphelion[aphcount][i] = output[holder1][body*8+i];
+				}
+				aphcount++;
+			}
+		}
+		stepcount += range;
+		if(stepcount + range > steps+1){
+			range = (steps+1) - stepcount;
+		}
+	}
+}
 massivebody::massivebody(){
 	mass = 0.0;
 	position[0] = 0.0;
@@ -112,10 +281,6 @@ massivebody::massivebody(massivebody primary, double Mass, double x, double y, d
 	velocity[2] = primary.velocity[2] + vz;
 	velocity[3] = sqrt(velocity[0]*velocity[0] + velocity[1]*velocity[1] + velocity[2]*velocity[2]);
 }
-
-/***********************
-massivesystem functions
-***********************/
 massivesystem::massivesystem(){
 	massivebody_count = 0;
 	system = nullptr;
@@ -278,289 +443,7 @@ void massivesystem::initialize(double**& output, double*& mass, int steps){
 		output[0][j*8+8] = system[j].velocity[3];
 	}
 }
-
-
-/***************************
-class function solvers,
-RK4 and Verlet
-***************************/
-void massivesystem::RK4(double**& output, int steps, double tmax, int sun_choice){
-	int i, j, k, m, n, bodies;
-	bodies = massivebody_count;
-	double h, halfh, halfhsq, rcubed, fourpisq;
-	double* k2, *k3;
-	h = (tmax-0.0)/((double) (steps));
-	halfh = 0.5*h;
-	halfhsq = halfh*h;	
-	fourpisq = 4.0*M_PI*M_PI;
-
-	//placeholders arrays
-	k2 = new double[bodies*6];
-	k3 = new double[bodies*6];
-	for(i=0;i<bodies*6;i++){
-		k2[i] = 0;
-		k3[i] = 0;
-	}
-	//relcoord to provide relative coordinates, x, y, z, r, of body i with respect to body j
-	double** relcoord = new double*[bodies];
-	for(i=0;i<bodies;i++){
-		relcoord[i] = new double[bodies*4];
-	}
-	//force provides fx,fy,fz for each body at step i and i+1
-	double** force = new double*[2];
-	for(i=0;i<2;i++){
-		force[i] = new double[bodies*3];
-	}
-	//initialize all matrices to zero
-	for(i=0;i<steps+1;i++){
-		for(j=0;j<bodies*8+1;j++){
-			output[i][j]=0.0;
-		}
-	}
-	for(i=0;i<bodies;i++){
-		for(j=0;j<bodies*4;j++){
-			relcoord[i][j]=0.0;
-		}
-	}
-	for(i=0;i<2;i++){
-		for(j=0;j<bodies*3;j++){
-			force[i][j]=0.0;
-		}
-	}
-
-	//reinitialize relcoord to initial conditions
-	//technically double calculating--consider revising
-	for(i=0;i<bodies;i++){
-		for(j=0;j<bodies;j++){
-			if(i!=j){
-				relcoord[i][j*4] = system[i].position[0] - system[j].position[0];
-				relcoord[i][j*4+1] = system[i].position[1] - system[j].position[1];
-				relcoord[i][j*4+2] = system[i].position[2] - system[j].position[2];
-				relcoord[i][j*4+3] = sqrt(relcoord[i][j*4]*relcoord[i][j*4] + relcoord[i][j*4+1]*relcoord[i][j*4+1]+relcoord[i][j*4+2]*relcoord[i][j*4+2]);
-			}
-		}
-	}
-	//initialize forces (k1v)
-	for(j=0;j<bodies;j++){
-		for(k=0;k<bodies;k++){
-			if(j!=k){
-				rcubed = pow(relcoord[j][k*4+3],3.0);
-				force[0][j*3] += -system[k].mass*relcoord[j][k*4]/rcubed;
-				force[0][j*3+1] += -system[k].mass*relcoord[j][k*4+1]/rcubed;
-				force[0][j*3+2] += -system[k].mass*relcoord[j][k*4+2]/rcubed;
-			}
-		}
-		force[0][j*3] *= fourpisq;
-		force[0][j*3+1] *= fourpisq;
-		force[0][j*3+2] *= fourpisq;
-	}
-	//initialize initial conditions for output
-	for(j=0;j<bodies;j++){
-		output[0][j*8+1] = system[j].position[0];
-		output[0][j*8+2] = system[j].position[1];
-		output[0][j*8+3] = system[j].position[2];
-		output[0][j*8+4] = system[j].position[3];
-		output[0][j*8+5] = system[j].velocity[0];
-		output[0][j*8+6] = system[j].velocity[1];
-		output[0][j*8+7] = system[j].velocity[2];
-		output[0][j*8+8] = system[j].velocity[3];
-	}
-
-	//Begin RK4 loop
-	for(i=0;i<steps;i++){
-		output[i+1][0] = output[i][0] + h;
-		//calculate first positions [1+1/2]
-		// (using k1x)
-		for(j=sun_choice;j<bodies;j++){
-			output[i+1][j*8+1] = output[i][j*8+1] + halfh*output[i][j*8+5];
-			output[i+1][j*8+2] = output[i][j*8+2] + halfh*output[i][j*8+6];
-			output[i+1][j*8+3] = output[i][j*8+3] + halfh*output[i][j*8+7];
-		}
-		//new relative positions at [i+1/2]
-		for(m=0;m<bodies;m++){
-			for(n=0;n<bodies;n++){
-				if(m!=n){
-					relcoord[m][n*4] = output[i+1][m*8+1] - output[i+1][n*8+1];
-					relcoord[m][n*4+1] = output[i+1][m*8+2] - output[i+1][n*8+2];
-					relcoord[m][n*4+2] = output[i+1][m*8+3] - output[i+1][n*8+3];
-					relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
-				}
-			}
-		}
-		//new forces with relative positions
-		for(j=0;j<bodies*3;j++){
-			force[1][j] = 0.0;
-		}
-		for(j=0;j<bodies;j++){
-			for(k=0;k<bodies;k++){
-				if(j!=k){
-					rcubed = pow(relcoord[j][k*4+3],3.0);
-					force[1][j*3] += -system[k].mass*relcoord[j][k*4]/rcubed;
-					force[1][j*3+1] += -system[k].mass*relcoord[j][k*4+1]/rcubed;
-					force[1][j*3+2] += -system[k].mass*relcoord[j][k*4+2]/rcubed;
-				}
-			}
-			force[1][j*3] *= fourpisq;
-			force[1][j*3+1] *= fourpisq;
-			force[1][j*3+2] *= fourpisq;
-			//k2v
-			k2[j*6+3] = force[1][j*3];
-			k2[j*6+4] = force[1][j*3+1];
-			k2[j*6+5] = force[1][j*3+2];
-		}
-		//k2x using i+1/2 positions
-		for(j=0;j<bodies;j++){
-			k2[j*6] = output[i][j*8+5] + halfh*force[1][j*3];
-			k2[j*6+1] = output[i][j*8+6] + halfh*force[1][j*3+1];
-			k2[j*6+2] = output[i][j*8+7] + halfh*force[1][j*3+2];
-		}
-		//new temp positions at i+1/2 with k2x
-		for(j=sun_choice;j<bodies;j++){
-			output[i+1][j*8+1] = output[i][j*8+1] + halfh*k2[j*6];
-			output[i+1][j*8+2] = output[i][j*8+2] + halfh*k2[j*6+1];
-			output[i+1][j*8+3] = output[i][j*8+3] + halfh*k2[j*6+2];
-		}
-		//new relative positions at [i+1/2] with k2x
-		for(m=0;m<bodies;m++){
-			for(n=0;n<bodies;n++){
-				if(m!=n){
-					relcoord[m][n*4] = output[i+1][m*8+1] - output[i+1][n*8+1];
-					relcoord[m][n*4+1] = output[i+1][m*8+2] - output[i+1][n*8+2];
-					relcoord[m][n*4+2] = output[i+1][m*8+3] - output[i+1][n*8+3];
-					relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
-				}
-			}
-		}
-		//new forces with relative positions
-		for(j=0;j<bodies*3;j++){
-			force[1][j] = 0.0;
-		}
-		for(j=0;j<bodies;j++){
-			for(k=0;k<bodies;k++){
-				if(j!=k){
-					rcubed = pow(relcoord[j][k*4+3],3.0);
-					force[1][j*3] += -system[k].mass*relcoord[j][k*4]/rcubed;
-					force[1][j*3+1] += -system[k].mass*relcoord[j][k*4+1]/rcubed;
-					force[1][j*3+2] += -system[k].mass*relcoord[j][k*4+2]/rcubed;
-				}
-			}
-			force[1][j*3] *= fourpisq;
-			force[1][j*3+1] *= fourpisq;
-			force[1][j*3+2] *= fourpisq;
-			//k3v
-			k3[j*6+3] = force[1][j*3];
-			k3[j*6+4] = force[1][j*3+1];
-			k3[j*6+5] = force[1][j*3+2];
-		}
-		//k3x using i+1/2 positions
-		for(j=0;j<bodies;j++){
-			k3[j*6] = output[i][j*8+5] + halfh*force[1][j*3];
-			k3[j*6+1] = output[i][j*8+6] + halfh*force[1][j*3+1];
-			k3[j*6+2] = output[i][j*8+7] + halfh*force[1][j*3+2];
-		}
-		//new temp positions at i+1 using k3x
-		for(j=sun_choice;j<bodies;j++){
-			output[i+1][j*8+1] = output[i][j*8+1] + h*k3[j*6];
-			output[i+1][j*8+2] = output[i][j*8+2] + h*k3[j*6+1];
-			output[i+1][j*8+3] = output[i][j*8+3] + h*k3[j*6+2];
-		}
-		//new relative positions at [i+1] with k3x
-		for(m=0;m<bodies;m++){
-			for(n=0;n<bodies;n++){
-				if(m!=n){
-					relcoord[m][n*4] = output[i+1][m*8+1] - output[i+1][n*8+1];
-					relcoord[m][n*4+1] = output[i+1][m*8+2] - output[i+1][n*8+2];
-					relcoord[m][n*4+2] = output[i+1][m*8+3] - output[i+1][n*8+3];
-					relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
-				}
-			}
-		}
-		//new forces with relative positions
-		for(j=0;j<bodies*3;j++){
-			force[1][j] = 0.0;
-		}
-		for(j=0;j<bodies;j++){
-			for(k=0;k<bodies;k++){
-				if(j!=k){
-					rcubed = pow(relcoord[j][k*4+3],3.0);
-					force[1][j*3] += -system[k].mass*relcoord[j][k*4]/rcubed;
-					force[1][j*3+1] += -system[k].mass*relcoord[j][k*4+1]/rcubed;
-					force[1][j*3+2] += -system[k].mass*relcoord[j][k*4+2]/rcubed;
-				}
-			}
-			force[1][j*3] *= fourpisq;
-			force[1][j*3+1] *= fourpisq;
-			force[1][j*3+2] *= fourpisq;
-		}
-		//k4x using i+1/2 positions
-		for(j=sun_choice;j<bodies;j++){
-			output[i+1][j*8+5] = output[i][j*8+5] + h*force[1][j*3];
-			output[i+1][j*8+6] = output[i][j*8+6] + h*force[1][j*3+1];
-			output[i+1][j*8+7] = output[i][j*8+7] + h*force[1][j*3+2];
-		}
-		//final positions at i+1
-		for(j=sun_choice;j<bodies;j++){
-			output[i+1][j*8+1] = output[i][j*8+1] + (h/6.0)*(output[i][j*8+5] + 2.0*k2[j*6] + 2.0*k3[j*6] + output[i+1][j*8+5]);
-			output[i+1][j*8+2] = output[i][j*8+2] + (h/6.0)*(output[i][j*8+6] + 2.0*k2[j*6+1] + 2.0*k3[j*6+1] + output[i+1][j*8+6]);
-			output[i+1][j*8+3] = output[i][j*8+3] + (h/6.0)*(output[i][j*8+7] + 2.0*k2[j*6+2] + 2.0*k3[j*6+2] + output[i+1][j*8+7]);
-			output[i+1][j*8+4] = sqrt(output[i+1][j*8+1]*output[i+1][j*8+1] + output[i+1][j*8+2]*output[i+1][j*8+2] + output[i+1][j*8+3]*output[i+1][j*8+3]);
-		}	
-		//final velocities at i+1
-		for(j=sun_choice;j<bodies;j++){
-			output[i+1][j*8+5] = output[i][j*8+5] + (h/6.0)*(force[0][j*3] + 2.0*k2[j*6+3] + 2.0*k3[j*6+3] + force[1][j*3]);
-			output[i+1][j*8+6] = output[i][j*8+6] + (h/6.0)*(force[0][j*3+1] + 2.0*k2[j*6+4] + 2.0*k3[j*6+4] + force[1][j*3+1]);
-			output[i+1][j*8+7] = output[i][j*8+7] + (h/6.0)*(force[0][j*3+2] + 2.0*k2[j*6+5] + 2.0*k3[j*6+5] + force[1][j*3+2]);
-			output[i+1][j*8+8] = sqrt(output[i+1][j*8+5]*output[i+1][j*8+5] + output[i+1][j*8+6]*output[i+1][j*8+6] + output[i+1][j*8+7]*output[i+1][j*8+7]);
-		}
-		//final relative positions at i+1
-		for(m=0;m<bodies;m++){
-			for(n=0;n<bodies;n++){
-				if(m!=n){
-					relcoord[m][n*4] = output[i+1][m*8+1] - output[i+1][n*8+1];
-					relcoord[m][n*4+1] = output[i+1][m*8+2] - output[i+1][n*8+2];
-					relcoord[m][n*4+2] = output[i+1][m*8+3] - output[i+1][n*8+3];
-					relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
-				}
-			}
-		}
-		//final forces with relative positions
-		for(j=0;j<bodies*3;j++){
-			force[1][j] = 0.0;
-		}
-		for(j=0;j<bodies;j++){
-			for(k=0;k<bodies;k++){
-				if(j!=k){
-					rcubed = pow(relcoord[j][k*4+3],3.0);
-					force[1][j*3] += -system[k].mass*relcoord[j][k*4]/rcubed;
-					force[1][j*3+1] += -system[k].mass*relcoord[j][k*4+1]/rcubed;
-					force[1][j*3+2] += -system[k].mass*relcoord[j][k*4+2]/rcubed;
-				}
-			}
-			force[1][j*3] *= fourpisq;
-			force[1][j*3+1] *= fourpisq;
-			force[1][j*3+2] *= fourpisq;
-		}
-		for(j=0;j<bodies;j++){
-			force[0][j*3] = force[1][j*3];
-			force[0][j*3+1] = force[1][j*3+1];
-			force[0][j*3+2] = force[1][j*3+2];
-		}
-
-	}
-
-	//delete dross--keep output
-	for(i=0;i<bodies;i++){
-		delete[] relcoord[i];
-	}
-	delete[] relcoord;
-	for(i=0;i<2;i++){
-		delete[] force[i];
-	}
-	delete[] force;
-	delete[] k2;
-	delete[] k3;
-}
-void massivesystem::verlet(double**& output, int steps, double tmax, int sun_choice){
+void massivesystem::verlet(double**& output, int steps, double tmax, double tolerance){
 	int i, j, k, m, n, bodies;
 	bodies = massivebody_count;
 	double h, halfh, halfhsq, rcubed, fourpisq;
@@ -637,13 +520,43 @@ void massivesystem::verlet(double**& output, int steps, double tmax, int sun_cho
 		output[0][j*8+7] = system[j].velocity[2];
 		output[0][j*8+8] = system[j].velocity[3];
 	}
+/********************************
+*		BEGIN UNIT TEST			*
+*********************************
+*		Energy and				*
+*	Momentum conservation		*
+********************************/
+	double energy_total, momentum_total[4], energy_temp;
+	double energy_step, momentum_step[4];
+	double massofsun = 1.989e30;
+
+	energy_total = 0.0;
+	for(j=0;j<4;j++){
+		momentum_total[j] = 0.0;
+	}
+	for(j=0;j<bodies;j++){
+		energy_temp = 0.0;
+		for(k=0;k<bodies;k++){
+			if(k!=j){
+				energy_temp += -system[k].mass/relcoord[j][k*4+3];
+			}
+		}
+		energy_temp *= fourpisq*system[j].mass*massofsun;
+		energy_total += energy_temp + 0.5*system[j].mass*output[0][j*8+8]*output[0][j*8+8];
+	}
+	for(j=0;j<bodies;j++){
+		momentum_total[0] += system[j].mass*output[0][j*8+5];
+		momentum_total[1] += system[j].mass*output[0][j*8+6];
+		momentum_total[2] += system[j].mass*output[0][j*8+7];
+	}
+	momentum_total[3] = sqrt(momentum_total[0]*momentum_total[0] + momentum_total[1]*momentum_total[1] + momentum_total[2]*momentum_total[2]);
 
 	//begin solution for-loop
 	for(i=0;i<steps;i++){
 		//Set next time value
 		output[i+1][0] = output[i][0] + h;
 		//calculate x,y,z		
-		for(j=sun_choice;j<bodies;j++){
+		for(j=0;j<bodies;j++){
 			output[i+1][j*8+1] = output[i][j*8+1] + h*output[i][j*8+5] + halfhsq*force[0][j*3];
 			output[i+1][j*8+2] = output[i][j*8+2] + h*output[i][j*8+6] + halfhsq*force[0][j*3+1];
 			output[i+1][j*8+3] = output[i][j*8+3] + h*output[i][j*8+7] + halfhsq*force[0][j*3+2];
@@ -678,7 +591,7 @@ void massivesystem::verlet(double**& output, int steps, double tmax, int sun_cho
 			force[1][j*3+2] *= fourpisq;
 		}
 		//calculate vx, vy, vz
-		for(j=sun_choice;j<bodies;j++){
+		for(j=0;j<bodies;j++){
 			output[i+1][j*8+5] = output[i][j*8+5] + halfh*(force[1][j*3] + force[0][j*3]);
 			output[i+1][j*8+6] = output[i][j*8+6] + halfh*(force[1][j*3+1] + force[0][j*3+1]);
 			output[i+1][j*8+7] = output[i][j*8+7] + halfh*(force[1][j*3+2] + force[0][j*3+2]);
@@ -690,6 +603,48 @@ void massivesystem::verlet(double**& output, int steps, double tmax, int sun_cho
 			force[0][j*3+1] = force[1][j*3+1];
 			force[0][j*3+2] = force[1][j*3+2];
 		}
+
+		if(i%10==0){
+			energy_step = 0.0;
+			for(j=0;j<4;j++){
+				momentum_step[j] = 0.0;
+			}
+			for(j=0;j<bodies;j++){
+				energy_temp = 0.0;
+				for(k=0;k<bodies;k++){
+					if(j!=k){
+						energy_temp += -system[k].mass/relcoord[j][k*4+3];
+					}
+				}
+				energy_temp *= fourpisq*system[j].mass*massofsun;
+				energy_step += energy_temp + 0.5*system[j].mass*output[i+1][j*8+8]*output[i+1][j*8+8];
+			}
+			for(j=0;j<bodies;j++){
+				momentum_step[0] += system[j].mass*output[i+1][j*8+5];
+				momentum_step[1] += system[j].mass*output[i+1][j*8+6];
+				momentum_step[2] += system[j].mass*output[i+1][j*8+7];
+			}
+			momentum_step[3] = sqrt(momentum_step[0]*momentum_step[0] + momentum_step[1]*momentum_step[1] + momentum_step[2]*momentum_step[2]);
+			
+			if(fabs((energy_step-energy_total)/energy_total)>tolerance){
+				cout << "Energy conservation failed on step " << i+1 << endl;
+				cout << "Fraction current differs from original " << fabs((energy_step-energy_total)/energy_total) << endl;				
+				cout << "Terminating." << endl;				
+				exit(1);
+			}
+			if(fabs((momentum_step[3]-momentum_total[3])/momentum_total[3])>tolerance){
+				cout << "Momentum conservation failed on step " << i+1 << endl;
+				cout << "Fraction current differs from original " << fabs((momentum_step[3]-momentum_total[3])/momentum_total[3]) << endl;
+				cout << "Terminating." << endl;
+				exit(1);
+			}
+		}
+/********************************
+*		END	UNIT TEST			*
+*********************************
+*		Energy and				*
+*	Momentum conservation		*
+********************************/
 	}
 	//delete dross--keep output
 	for(i=0;i<bodies;i++){
@@ -702,123 +657,363 @@ void massivesystem::verlet(double**& output, int steps, double tmax, int sun_cho
 	delete[] force;
 
 }
+void massivesystem::RK4(double**& output, int steps, double tmax, double tolerance){
+	int i, j, k, m, n, bodies;
+	bodies = massivebody_count;
+	double h, halfh, halfhsq, rcubed, fourpisq;
+	double* k2, *k3;
+	h = (tmax-0.0)/((double) (steps));
+	halfh = 0.5*h;
+	halfhsq = halfh*h;	
+	fourpisq = 4.0*M_PI*M_PI;
+	//placeholders arrays
+	k2 = new double[bodies*6];
+	k3 = new double[bodies*6];
+	for(i=0;i<bodies*6;i++){
+		k2[i] = 0;
+		k3[i] = 0;
+	}
+	//relcoord to provide relative coordinates, x, y, z, r, of body i with respect to body j
+	//technically double counting--consider revising
+	double** relcoord = new double*[bodies];
+	for(i=0;i<bodies;i++){
+		relcoord[i] = new double[bodies*4];
+	}
+	//force provides fx,fy,fz for each body at step i and i+1
+	double** force = new double*[2];
+	for(i=0;i<2;i++){
+		force[i] = new double[bodies*3];
+	}
+	//initialize all matrices to zero
+	for(i=0;i<steps+1;i++){
+		for(j=0;j<bodies*8+1;j++){
+			output[i][j]=0.0;
+		}
+	}
+	for(i=0;i<bodies;i++){
+		for(j=0;j<bodies*4;j++){
+			relcoord[i][j]=0.0;
+		}
+	}
+	for(i=0;i<2;i++){
+		for(j=0;j<bodies*3;j++){
+			force[i][j]=0.0;
+		}
+	}
 
+	//reinitialize relcoord to initial conditions	
+	for(i=0;i<bodies;i++){
+		for(j=0;j<bodies;j++){
+			if(i!=j){
+				relcoord[i][j*4] = system[i].position[0] - system[j].position[0];
+				relcoord[i][j*4+1] = system[i].position[1] - system[j].position[1];
+				relcoord[i][j*4+2] = system[i].position[2] - system[j].position[2];
+				relcoord[i][j*4+3] = sqrt(relcoord[i][j*4]*relcoord[i][j*4] + relcoord[i][j*4+1]*relcoord[i][j*4+1]+relcoord[i][j*4+2]*relcoord[i][j*4+2]);
+			}
+		}
+	}
+	//initialize forces (k1v)
+	for(j=0;j<bodies;j++){
+		for(k=0;k<bodies;k++){
+			if(j!=k){
+				rcubed = pow(relcoord[j][k*4+3],3.0);
+				force[0][j*3] += -system[k].mass*relcoord[j][k*4]/rcubed;
+				force[0][j*3+1] += -system[k].mass*relcoord[j][k*4+1]/rcubed;
+				force[0][j*3+2] += -system[k].mass*relcoord[j][k*4+2]/rcubed;
+			}
+		}
+		force[0][j*3] *= fourpisq;
+		force[0][j*3+1] *= fourpisq;
+		force[0][j*3+2] *= fourpisq;
+	}
+	//initialize initial conditions for output
+	for(j=0;j<bodies;j++){
+		output[0][j*8+1] = system[j].position[0];
+		output[0][j*8+2] = system[j].position[1];
+		output[0][j*8+3] = system[j].position[2];
+		output[0][j*8+4] = system[j].position[3];
+		output[0][j*8+5] = system[j].velocity[0];
+		output[0][j*8+6] = system[j].velocity[1];
+		output[0][j*8+7] = system[j].velocity[2];
+		output[0][j*8+8] = system[j].velocity[3];
+	}
+
+/********************************
+*		BEGIN UNIT TEST			*
+*********************************
+*		Energy and				*
+*	Momentum conservation		*
+********************************/
+	double energy_total, energy_step, energy_temp;
+	double momentum_total[4], momentum_step[4];
+	double massofsun = 1.989e30;
+
+	energy_total = 0.0;
+	for(j=0;j<4;j++){
+		momentum_total[j] = 0.0;
+	}
+	for(j=0;j<bodies;j++){
+		energy_temp = 0.0;
+		for(k=0;k<bodies;k++){
+			if(k!=j){
+				energy_temp += -system[k].mass/relcoord[j][k*4+3];
+			}
+		}
+		energy_temp *= fourpisq*system[j].mass*massofsun;
+		energy_total += energy_temp + 0.5*system[j].mass*output[0][j*8+8]*output[0][j*8+8];
+	}
+	for(j=0;j<bodies;j++){
+		momentum_total[0] += system[j].mass*output[0][j*8+5];
+		momentum_total[1] += system[j].mass*output[0][j*8+6];
+		momentum_total[2] += system[j].mass*output[0][j*8+7];
+	}	
+	
+	momentum_total[3] = sqrt(momentum_total[0]*momentum_total[0] + momentum_total[1]*momentum_total[1] + momentum_total[2]*momentum_total[2]);
+
+	//Begin RK4 loop
+	for(i=0;i<steps;i++){
+		output[i+1][0] = output[i][0] + h;
+		//calculate first positions [1+1/2]
+		// (using k1x)
+		for(j=0;j<bodies;j++){
+			output[i+1][j*8+1] = output[i][j*8+1] + halfh*output[i][j*8+5];
+			output[i+1][j*8+2] = output[i][j*8+2] + halfh*output[i][j*8+6];
+			output[i+1][j*8+3] = output[i][j*8+3] + halfh*output[i][j*8+7];
+		}
+		//new relative positions at [i+1/2]
+		for(m=0;m<bodies;m++){
+			for(n=0;n<bodies;n++){
+				if(m!=n){
+					relcoord[m][n*4] = output[i+1][m*8+1] - output[i+1][n*8+1];
+					relcoord[m][n*4+1] = output[i+1][m*8+2] - output[i+1][n*8+2];
+					relcoord[m][n*4+2] = output[i+1][m*8+3] - output[i+1][n*8+3];
+					relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
+				}
+			}
+		}
+		//new forces with relative positions
+		for(j=0;j<bodies*3;j++){
+			force[1][j] = 0.0;
+		}
+		for(j=0;j<bodies;j++){
+			for(k=0;k<bodies;k++){
+				if(j!=k){
+					rcubed = pow(relcoord[j][k*4+3],3.0);
+					force[1][j*3] += -system[k].mass*relcoord[j][k*4]/rcubed;
+					force[1][j*3+1] += -system[k].mass*relcoord[j][k*4+1]/rcubed;
+					force[1][j*3+2] += -system[k].mass*relcoord[j][k*4+2]/rcubed;
+				}
+			}
+			force[1][j*3] *= fourpisq;
+			force[1][j*3+1] *= fourpisq;
+			force[1][j*3+2] *= fourpisq;
+			//k2v
+			k2[j*6+3] = force[1][j*3];
+			k2[j*6+4] = force[1][j*3+1];
+			k2[j*6+5] = force[1][j*3+2];
+		}
+		//k2x using i+1/2 positions
+		for(j=0;j<bodies;j++){
+			k2[j*6] = output[i][j*8+5] + halfh*force[1][j*3];
+			k2[j*6+1] = output[i][j*8+6] + halfh*force[1][j*3+1];
+			k2[j*6+2] = output[i][j*8+7] + halfh*force[1][j*3+2];
+		}
+		//new temp positions at i+1/2 with k2x
+		for(j=0;j<bodies;j++){
+			output[i+1][j*8+1] = output[i][j*8+1] + halfh*k2[j*6];
+			output[i+1][j*8+2] = output[i][j*8+2] + halfh*k2[j*6+1];
+			output[i+1][j*8+3] = output[i][j*8+3] + halfh*k2[j*6+2];
+		}
+		//new relative positions at [i+1/2] with k2x
+		for(m=0;m<bodies;m++){
+			for(n=0;n<bodies;n++){
+				if(m!=n){
+					relcoord[m][n*4] = output[i+1][m*8+1] - output[i+1][n*8+1];
+					relcoord[m][n*4+1] = output[i+1][m*8+2] - output[i+1][n*8+2];
+					relcoord[m][n*4+2] = output[i+1][m*8+3] - output[i+1][n*8+3];
+					relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
+				}
+			}
+		}
+		//new forces with relative positions
+		for(j=0;j<bodies*3;j++){
+			force[1][j] = 0.0;
+		}
+		for(j=0;j<bodies;j++){
+			for(k=0;k<bodies;k++){
+				if(j!=k){
+					rcubed = pow(relcoord[j][k*4+3],3.0);
+					force[1][j*3] += -system[k].mass*relcoord[j][k*4]/rcubed;
+					force[1][j*3+1] += -system[k].mass*relcoord[j][k*4+1]/rcubed;
+					force[1][j*3+2] += -system[k].mass*relcoord[j][k*4+2]/rcubed;
+				}
+			}
+			force[1][j*3] *= fourpisq;
+			force[1][j*3+1] *= fourpisq;
+			force[1][j*3+2] *= fourpisq;
+			//k3v
+			k3[j*6+3] = force[1][j*3];
+			k3[j*6+4] = force[1][j*3+1];
+			k3[j*6+5] = force[1][j*3+2];
+		}
+		//k3x using i+1/2 positions
+		for(j=0;j<bodies;j++){
+			k3[j*6] = output[i][j*8+5] + halfh*force[1][j*3];
+			k3[j*6+1] = output[i][j*8+6] + halfh*force[1][j*3+1];
+			k3[j*6+2] = output[i][j*8+7] + halfh*force[1][j*3+2];
+		}
+		//new temp positions at i+1 using k3x
+		for(j=0;j<bodies;j++){
+			output[i+1][j*8+1] = output[i][j*8+1] + h*k3[j*6];
+			output[i+1][j*8+2] = output[i][j*8+2] + h*k3[j*6+1];
+			output[i+1][j*8+3] = output[i][j*8+3] + h*k3[j*6+2];
+		}
+		//new relative positions at [i+1] with k3x
+		for(m=0;m<bodies;m++){
+			for(n=0;n<bodies;n++){
+				if(m!=n){
+					relcoord[m][n*4] = output[i+1][m*8+1] - output[i+1][n*8+1];
+					relcoord[m][n*4+1] = output[i+1][m*8+2] - output[i+1][n*8+2];
+					relcoord[m][n*4+2] = output[i+1][m*8+3] - output[i+1][n*8+3];
+					relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
+				}
+			}
+		}
+		//new forces with relative positions
+		for(j=0;j<bodies*3;j++){
+			force[1][j] = 0.0;
+		}
+		for(j=0;j<bodies;j++){
+			for(k=0;k<bodies;k++){
+				if(j!=k){
+					rcubed = pow(relcoord[j][k*4+3],3.0);
+					force[1][j*3] += -system[k].mass*relcoord[j][k*4]/rcubed;
+					force[1][j*3+1] += -system[k].mass*relcoord[j][k*4+1]/rcubed;
+					force[1][j*3+2] += -system[k].mass*relcoord[j][k*4+2]/rcubed;
+				}
+			}
+			force[1][j*3] *= fourpisq;
+			force[1][j*3+1] *= fourpisq;
+			force[1][j*3+2] *= fourpisq;
+		}
+		//k4x using i+1/2 positions
+		for(j=0;j<bodies;j++){
+			output[i+1][j*8+5] = output[i][j*8+5] + h*force[1][j*3];
+			output[i+1][j*8+6] = output[i][j*8+6] + h*force[1][j*3+1];
+			output[i+1][j*8+7] = output[i][j*8+7] + h*force[1][j*3+2];
+		}
+		//final positions at i+1
+		for(j=0;j<bodies;j++){
+			output[i+1][j*8+1] = output[i][j*8+1] + (h/6.0)*(output[i][j*8+5] + 2.0*k2[j*6] + 2.0*k3[j*6] + output[i+1][j*8+5]);
+			output[i+1][j*8+2] = output[i][j*8+2] + (h/6.0)*(output[i][j*8+6] + 2.0*k2[j*6+1] + 2.0*k3[j*6+1] + output[i+1][j*8+6]);
+			output[i+1][j*8+3] = output[i][j*8+3] + (h/6.0)*(output[i][j*8+7] + 2.0*k2[j*6+2] + 2.0*k3[j*6+2] + output[i+1][j*8+7]);
+			output[i+1][j*8+4] = sqrt(output[i+1][j*8+1]*output[i+1][j*8+1] + output[i+1][j*8+2]*output[i+1][j*8+2] + output[i+1][j*8+3]*output[i+1][j*8+3]);
+		}	
+		//final velocities at i+1
+		for(j=0;j<bodies;j++){
+			output[i+1][j*8+5] = output[i][j*8+5] + (h/6.0)*(force[0][j*3] + 2.0*k2[j*6+3] + 2.0*k3[j*6+3] + force[1][j*3]);
+			output[i+1][j*8+6] = output[i][j*8+6] + (h/6.0)*(force[0][j*3+1] + 2.0*k2[j*6+4] + 2.0*k3[j*6+4] + force[1][j*3+1]);
+			output[i+1][j*8+7] = output[i][j*8+7] + (h/6.0)*(force[0][j*3+2] + 2.0*k2[j*6+5] + 2.0*k3[j*6+5] + force[1][j*3+2]);
+			output[i+1][j*8+8] = sqrt(output[i+1][j*8+5]*output[i+1][j*8+5] + output[i+1][j*8+6]*output[i+1][j*8+6] + output[i+1][j*8+7]*output[i+1][j*8+7]);
+		}
+		//final relative positions at i+1
+		for(m=0;m<bodies;m++){
+			for(n=0;n<bodies;n++){
+				if(m!=n){
+					relcoord[m][n*4] = output[i+1][m*8+1] - output[i+1][n*8+1];
+					relcoord[m][n*4+1] = output[i+1][m*8+2] - output[i+1][n*8+2];
+					relcoord[m][n*4+2] = output[i+1][m*8+3] - output[i+1][n*8+3];
+					relcoord[m][n*4+3] = sqrt(relcoord[m][n*4]*relcoord[m][n*4] + relcoord[m][n*4+1]*relcoord[m][n*4+1]+relcoord[m][n*4+2]*relcoord[m][n*4+2]);
+				}
+			}
+		}
+		//final forces with relative positions
+		for(j=0;j<bodies*3;j++){
+			force[1][j] = 0.0;
+		}
+		for(j=0;j<bodies;j++){
+			for(k=0;k<bodies;k++){
+				if(j!=k){
+					rcubed = pow(relcoord[j][k*4+3],3.0);
+					force[1][j*3] += -system[k].mass*relcoord[j][k*4]/rcubed;
+					force[1][j*3+1] += -system[k].mass*relcoord[j][k*4+1]/rcubed;
+					force[1][j*3+2] += -system[k].mass*relcoord[j][k*4+2]/rcubed;
+				}
+			}
+			force[1][j*3] *= fourpisq;
+			force[1][j*3+1] *= fourpisq;
+			force[1][j*3+2] *= fourpisq;
+		}
+		for(j=0;j<bodies;j++){
+			force[0][j*3] = force[1][j*3];
+			force[0][j*3+1] = force[1][j*3+1];
+			force[0][j*3+2] = force[1][j*3+2];
+		}
+
+/****************
+	Unit Test
+****************/
+		if(i%10==0){
+			energy_step = 0.0;
+			for(j=0;j<4;j++){
+				momentum_step[j] = 0.0;
+			}
+			for(j=0;j<bodies;j++){
+				energy_temp = 0.0;
+				for(k=0;k<bodies;k++){
+					if(j!=k){
+						energy_temp += -system[k].mass/relcoord[j][k*4+3];
+					}
+				}
+				energy_temp *= fourpisq*system[j].mass*massofsun;
+				energy_step += energy_temp + 0.5*system[j].mass*output[i+1][j*8+8]*output[i+1][j*8+8];
+			}
+			for(j=0;j<bodies;j++){
+				momentum_step[0] += system[j].mass*output[i+1][j*8+5];
+				momentum_step[1] += system[j].mass*output[i+1][j*8+6];
+				momentum_step[2] += system[j].mass*output[i+1][j*8+7];
+			}
+			momentum_step[3] = sqrt(momentum_step[0]*momentum_step[0] + momentum_step[1]*momentum_step[1] + momentum_step[2]*momentum_step[2]);
+			if(fabs((energy_step-energy_total)/energy_total)>tolerance){
+				cout << "Energy conservation failed on step " << i+1 << endl;
+				cout << "Fraction current differs from original " << fabs((energy_step-energy_total)/energy_total) << endl;				
+				cout << "Terminating." << endl;				
+				exit(1);
+			}
+			if(fabs((momentum_step[3]-momentum_total[3])/momentum_total[3])>tolerance){
+				cout << "Momentum conservation failed on step " << i+1 << endl;
+				cout << "Fraction current differs from original " << fabs((momentum_step[3]-momentum_total[3])/momentum_total[3]) << endl;
+				cout << "Terminating." << endl;
+				exit(1);
+			}
+		}
+
+/********************************
+*		END	UNIT TEST			*
+*********************************
+*		Energy and				*
+*	Momentum conservation		*
+********************************/
+
+	}
+
+	//delete dross--keep output
+	for(i=0;i<bodies;i++){
+		delete[] relcoord[i];
+	}
+	delete[] relcoord;
+	for(i=0;i<2;i++){
+		delete[] force[i];
+	}
+	delete[] force;
+	delete[] k2;
+	delete[] k3;
+}
 
 /******************************************************
 	Begin function non-class functions
 ******************************************************/
 
-/***************
-Array functions
-***************/
-inline void array_alloc(double*& a, int length){
-	int i;	
-	a = new double[length];
-	for(i=0;i<length;i++){
-		a[i] = 0.0;
-	}
-}
-inline void array_delete(double*& a){
-	delete[] a;
-}
-inline void array_resize(double*& array, int oldsize, int newsize){
-	double* temp = new double[newsize];
-	for(int i=0;i<oldsize;i++){
-		temp[i]=array[i];
-	}
-
-	delete[] array;
-	array = temp;
-}
-
-
-/***************
-Matrix functions
-***************/
-inline void matrix_alloc(double**& a, int rows, int columns){
-	int i, j;	
-	a = new double*[rows];
-	for(i=0;i<rows;i++){
-		a[i] = new double[columns];
-	}
-	for(i=0;i<rows;i++){
-		for(j=0;j<columns;j++){
-			a[i][j] = 0.0;
-		}
-	}
-}
-inline void matrix_delete(double**& a, int rows){
-	for(int i=0;i<rows;i++){
-		delete a[i];
-	}
-	delete[] a;
-}
-inline void matrix_resize(double**& matrix, int oldrows, int oldcol, int newrows, int newcol){
-	int i, j;	
-	double** temp = new double*[newrows];
-	for(i=0;i<newrows;i++){
-		temp[i] = new double[newcol];
-	}
-	for(i=0;i<oldrows;i++){
-		for(j=0;j<oldcol;j++){
-			temp[i][j]=matrix[i][j];
-		}
-	}
-
-	for(i=0;i<oldrows;i++){
-		delete[] matrix[i];
-	}
-	delete[] matrix;
-	matrix = temp;
-}
-
-
-/*****************
-3D-Array functions
-*****************/
-inline void threeDarray_alloc(double***& a, int d1, int d2, int d3){
-	int i, j, k;	
-	a = new double**[d1];
-	for(i=0;i<d1;i++){
-		a[i] = new double*[d2];
-	}
-	for(i=0;i<d1;i++){
-		for(j=0;j<d2;j++){
-			a[i][j] = new double[d3];
-		}
-	}
-	for(i=0;i<d1;i++){
-		for(j=0;j<d2;j++){
-			for(k=0;k<d3;k++){
-				a[i][j][k] = 0.0;
-			}
-		}
-	}
-	for(i=0;i<d1;i++){
-		for(j=0;j<d2;j++){
-			for(k=0;k<d3;k++){
-				a[i][j][k] = 0.0;
-			}
-		}
-	}
-}
-inline void threeDarray_delete(double***& a, int d1, int d2){
-	int i, j;
-	for(i=0;i<d1;i++){
-		for(j=0;j<d2;j++){
-			delete[] a[i][j];
-		}
-	}
-	for(i=0;i<d1;i++){
-		delete[] a[i];
-	}
-	delete[] a;
-}
-
-
-/***************************
-force calculation functions
-***************************/
 inline void rel_position(double**& relcoord, double**& output, int i, int bodies){
 	int m, n;
 	for(m=0;m<bodies;m++){
@@ -887,7 +1082,7 @@ inline void gravityforces(double**& force, double**& relcoord, double*& mass, in
 }
 inline void gravityforces_relcorrection(double**& force, double**& relangmomentum, double**& relcoord, double*& mass, int i, int bodies){
 	int j, k;
-	double rsq, rcubed, fourpisq, relcor, threeovercsq, fullterm;
+	double rsq, rcubed, fourpisq, relcor, threeovercsq, masssqk, masssqj, fullterm;
 	threeovercsq = 3.0/(63197.8*63197.8);
 	fourpisq = 4.0*M_PI*M_PI;
 	for(j=0;j<bodies;j++){
@@ -896,8 +1091,10 @@ inline void gravityforces_relcorrection(double**& force, double**& relangmomentu
 		force[i][j*3+2] = 0.0;
 	}
 	for(j=0;j<bodies;j++){
+		masssqj = mass[j]*mass[j];
 		for(k=0;k<bodies;k++){
 			if(j!=k){
+				masssqk = mass[k]*mass[k];
 				rsq = pow(relcoord[j][k*8+3],2.0);
 				relcor = (threeovercsq/rsq)*(relangmomentum[j][k*4+3]*relangmomentum[j][k*4+3]);
 				fullterm = (1.0 + relcor)/(rsq*relcoord[j][k*8+3]);
@@ -911,20 +1108,13 @@ inline void gravityforces_relcorrection(double**& force, double**& relangmomentu
 		force[i][j*3+2] *= fourpisq;
 	}
 }
-
-
-/***************************
-Non-class function Verlet
-and relativistic Verlet
-***************************/
-void verlet(double**& output, double*& mass, int bodies, int steps, double tmax, int sun_choice){
+void verlet(double**& output, double*& mass, int bodies, int steps, double tmax, double tolerance){
 	int i, j, k, m, n;
 	double h, halfh, halfhsq, rcubed, fourpisq;
 	h = (tmax-0.0)/((double) (steps));
 	halfh = 0.5*h;
 	halfhsq = halfh*h;	
 	fourpisq = 4.0*M_PI*M_PI;
-
 	//relcoord to provide relative coordinates, x, y, z, r, of body i with respect to body j
 	//technically double calculating--consider revising
 	double** relcoord = new double*[bodies];
@@ -947,12 +1137,44 @@ void verlet(double**& output, double*& mass, int bodies, int steps, double tmax,
 	rel_position(relcoord, output, 0, bodies);
 	gravityforces(force, relcoord, mass, 0, bodies);
 
+/********************************
+*		BEGIN UNIT TEST			*
+*********************************
+*		Energy and				*
+*	Momentum conservation		*
+********************************/
+	double energy_total, energy_step, energy_temp;
+	double momentum_total[4], momentum_step[4];
+	double massofsun = 1.989e30;
+
+	energy_total = 0.0;
+	for(j=0;j<4;j++){
+		momentum_total[j] = 0.0;
+	}
+	for(j=0;j<bodies;j++){
+		energy_temp = 0.0;
+		for(k=0;k<bodies;k++){
+			if(k!=j){
+				energy_temp += -mass[k]/relcoord[j][k*4+3];
+			}
+		}
+		energy_temp *= fourpisq*mass[j]*massofsun;
+		energy_total += energy_temp + 0.5*mass[j]*output[0][j*8+8]*output[0][j*8+8];
+	}
+	for(j=0;j<bodies;j++){
+		momentum_total[0] += mass[j]*output[0][j*8+5];
+		momentum_total[1] += mass[j]*output[0][j*8+6];
+		momentum_total[2] += mass[j]*output[0][j*8+7];
+	}	
+	
+	momentum_total[3] = sqrt(momentum_total[0]*momentum_total[0] + momentum_total[1]*momentum_total[1] + momentum_total[2]*momentum_total[2]);
+
 	//begin solution for-loop
 	for(i=0;i<steps;i++){
 		//Set next time value
 		output[i+1][0] = output[i][0] + h;
 		//calculate x,y,z		
-		for(j=sun_choice;j<bodies;j++){
+		for(j=0;j<bodies;j++){
 			output[i+1][j*8+1] = output[i][j*8+1] + h*output[i][j*8+5] + halfhsq*force[0][j*3];
 			output[i+1][j*8+2] = output[i][j*8+2] + h*output[i][j*8+6] + halfhsq*force[0][j*3+1];
 			output[i+1][j*8+3] = output[i][j*8+3] + h*output[i][j*8+7] + halfhsq*force[0][j*3+2];
@@ -962,7 +1184,7 @@ void verlet(double**& output, double*& mass, int bodies, int steps, double tmax,
 		rel_position(relcoord, output, i+1, bodies);
 		gravityforces(force, relcoord, mass, 1, bodies);
 		//calculate vx, vy, vz
-		for(j=sun_choice;j<bodies;j++){
+		for(j=0;j<bodies;j++){
 			output[i+1][j*8+5] = output[i][j*8+5] + halfh*(force[1][j*3] + force[0][j*3]);
 			output[i+1][j*8+6] = output[i][j*8+6] + halfh*(force[1][j*3+1] + force[0][j*3+1]);
 			output[i+1][j*8+7] = output[i][j*8+7] + halfh*(force[1][j*3+2] + force[0][j*3+2]);
@@ -974,6 +1196,49 @@ void verlet(double**& output, double*& mass, int bodies, int steps, double tmax,
 			force[0][j*3+1] = force[1][j*3+1];
 			force[0][j*3+2] = force[1][j*3+2];
 		}
+
+		if(i%10==0){
+			energy_step = 0.0;
+			for(j=0;j<4;j++){
+				momentum_step[j] = 0.0;
+			}
+			for(j=0;j<bodies;j++){
+				energy_temp = 0.0;
+				for(k=0;k<bodies;k++){
+					if(j!=k){
+						energy_temp += -mass[k]/relcoord[j][k*4+3];
+					}
+				}
+				energy_temp *= fourpisq*mass[j]*massofsun;
+				energy_step += energy_temp + 0.5*mass[j]*output[i+1][j*8+8]*output[i+1][j*8+8];
+			}
+			for(j=0;j<bodies;j++){
+				momentum_step[0] += mass[j]*output[i+1][j*8+5];
+				momentum_step[1] += mass[j]*output[i+1][j*8+6];
+				momentum_step[2] += mass[j]*output[i+1][j*8+7];
+			}
+			momentum_step[3] = sqrt(momentum_step[0]*momentum_step[0] + momentum_step[1]*momentum_step[1] + momentum_step[2]*momentum_step[2]);
+			
+			if(fabs((energy_step-energy_total)/energy_total)>tolerance){
+				cout << "Energy conservation failed on step " << i+1 << endl;
+				cout << "Fraction current differs from original " << fabs((energy_step-energy_total)/energy_total) << endl;				
+				cout << "Terminating." << endl;				
+				exit(1);
+			}
+			if(fabs((momentum_step[3]-momentum_total[3])/momentum_total[3])>tolerance){
+				cout << "Momentum conservation failed on step " << i+1 << endl;
+				cout << "Fraction current differs from original " << fabs((momentum_step[3]-momentum_total[3])/momentum_total[3]) << endl;
+				cout << "Terminating." << endl;
+				exit(1);
+			}
+		}
+/********************************
+*		END	UNIT TEST			*
+*********************************
+*		Energy and				*
+*	Momentum conservation		*
+********************************/
+
 	}
 	//delete dross--keep output
 	for(i=0;i<bodies;i++){
@@ -986,7 +1251,7 @@ void verlet(double**& output, double*& mass, int bodies, int steps, double tmax,
 	delete[] force;
 
 }
-void verlet_relcor(double**& output, double*& mass, int bodies, int steps, double tmax, int sun_choice){
+void verlet_relcor(double**& output, double*& mass, int bodies, int steps, double tmax){
 	int i, j, k, m, n;
 	double h, halfh, halfhsq, rcubed, fourpisq;
 	h = (tmax-0.0)/((double) (steps));
@@ -1031,7 +1296,7 @@ void verlet_relcor(double**& output, double*& mass, int bodies, int steps, doubl
 		//Set next time value
 		output[i+1][0] = output[i][0] + h;
 		//calculate x,y,z		
-		for(j=sun_choice;j<bodies;j++){
+		for(j=0;j<bodies;j++){
 			output[i+1][j*8+1] = output[i][j*8+1] + h*output[i][j*8+5] + halfhsq*force[0][j*3];
 			output[i+1][j*8+2] = output[i][j*8+2] + h*output[i][j*8+6] + halfhsq*force[0][j*3+1];
 			output[i+1][j*8+3] = output[i][j*8+3] + h*output[i][j*8+7] + halfhsq*force[0][j*3+2];
@@ -1044,7 +1309,7 @@ void verlet_relcor(double**& output, double*& mass, int bodies, int steps, doubl
 		gravityforces_relcorrection(force, relangmomentum, relcoord, mass, 1, bodies);
 		
 		//calculate vx, vy, vz
-		for(j=sun_choice;j<bodies;j++){
+		for(j=0;j<bodies;j++){
 			output[i+1][j*8+5] = output[i][j*8+5] + halfh*(force[1][j*3] + force[0][j*3]);
 			output[i+1][j*8+6] = output[i][j*8+6] + halfh*(force[1][j*3+1] + force[0][j*3+1]);
 			output[i+1][j*8+7] = output[i][j*8+7] + halfh*(force[1][j*3+2] + force[0][j*3+2]);
@@ -1068,12 +1333,6 @@ void verlet_relcor(double**& output, double*& mass, int bodies, int steps, doubl
 	delete[] force;
 
 }
-
-/***************************
-helionstates functions to 
-retrieve aphelion & peri-
-helion data
-***************************/
 void helionstates(double**& output, double**& aphelion, double**& perihelion, int bodies, int steps){
 	int i, j;
 	//Initialize with beginning values
@@ -1094,94 +1353,6 @@ void helionstates(double**& output, double**& aphelion, double**& perihelion, in
 				perihelion[j][0] = output[i][j*8+4];
 				perihelion[j][1] = output[i][0];
 			}
-		}
-	}
-}
-void helionstates_dynamic(double**& aphelion, int& aphguess, double**& perihelion, int& periguess, double**& output, int steps, int body, int range, int dec_or_inc){
-	int i, j, stepcount, aphcount, pericount, rposition, holder0, holder1;
-	double maxtemp[2], mintemp[2], holder[2];
-	rposition = body*8+4;
-
-	for(i=1;i<5;i++){
-		aphelion[0][i] = output[0][body*8+i];	
-		perihelion[0][i] = aphelion[0][i];
-	}
-
-	aphelion[0][0] = output[0][0];
-	perihelion[0][0] = aphelion[0][0];
-	holder[0] = aphelion[0][4];
-	holder[1] = 0;
-
-	stepcount = 0;
-	aphcount=1;
-	pericount=1;	
-	
-	while(stepcount<steps+1){
-		if(aphcount >= aphguess){
-			matrix_resize(aphelion, aphguess, 5, aphcount+1, 5);
-			aphelion[aphcount][0] = -1;
-			for(i=0;i<5;i++){
-				aphelion[aphcount][i] = 0;
-			}
-			aphguess = aphcount+1;
-		}if(pericount >= periguess){
-			matrix_resize(perihelion, periguess, 5, pericount+1, 5);
-			perihelion[pericount][0] = -1;
-			for(i=1;i<5;i++){
-				perihelion[pericount][i] = 0;
-			}
-			periguess = pericount+1;
-		}
-
-		if(dec_or_inc==0){
-			mintemp[0] = holder[0];
-			mintemp[1] = holder[1];
-			for(i=stepcount;i<stepcount+range;i++){
-				if(output[i][rposition]<=mintemp[0]){
-					mintemp[0] = output[i][rposition];
-					mintemp[1] = i;
-				}
-			}
-			if(mintemp[0]<holder[0]){
-				holder[0] = mintemp[0];
-				holder[1] = mintemp[1];
-			}
-			else{
-				dec_or_inc = 1;
-				holder1=holder[1];
-				perihelion[pericount][0] = output[holder1][0];
-				for(i=1;i<5;i++){
-					perihelion[pericount][i] = output[holder1][body*8+i];
-				}	
-				pericount++;
-			}
-		}
-		else if(dec_or_inc==1){
-			maxtemp[0] = holder[0];
-			mintemp[1] = holder[1];
-			for(i=stepcount;i<stepcount+range;i++){
-				if(output[i][rposition]>=maxtemp[0]){
-					maxtemp[0] = output[i][rposition];
-					maxtemp[1] = i;
-				}
-			}
-			if(maxtemp[0]>holder[0]){
-				holder[0] = maxtemp[0];
-				holder[1] = maxtemp[1];
-			}
-			else{
-				dec_or_inc = 0;
-				holder1=holder[1];
-				aphelion[aphcount][0] = output[holder1][0];
-				for(i=1;i<5;i++){			
-					aphelion[aphcount][i] = output[holder1][body*8+i];
-				}
-				aphcount++;
-			}
-		}
-		stepcount += range;
-		if(stepcount + range > steps+1){
-			range = (steps+1) - stepcount;
 		}
 	}
 }
