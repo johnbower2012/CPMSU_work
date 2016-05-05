@@ -1,0 +1,125 @@
+#include<iostream>
+#include<iomanip>
+#include<cmath>
+#include<fstream>
+#include<random>
+#include<chrono>
+#include "time.h"
+#include "project4_library.h"
+#include "spinsystem_library.h"
+
+using namespace std;
+
+ofstream ofile;
+
+int main(int argc, char* argv[]){
+	int i, n, accstates, cycles, align, printcount, cycpow, choice;
+	double T, J, time, current_T;
+	char* outfilename, *probfilename;
+	clock_t start, finish;
+
+	if(argc<8){
+		cout << "Bad usage. Enter also 'n T J aligned_init_0_1_2 outfilename cycles prob_write_temp_0_1_2' on same line." << endl;
+		exit(1);
+	}
+	else{
+		n = atoi(argv[1]);
+		T = atof(argv[2]);
+		J = atof(argv[3]);
+		align = atoi(argv[4]);
+		outfilename = argv[5];
+		cycles = atoi(argv[6]);
+		choice = atoi(argv[7]);
+	}
+
+	spin_system spinbaby(n,n,J,T);
+	if(align==1){
+		spinbaby.align_up();
+	}
+
+	spin_evolution spinadult(spinbaby);
+
+	if(choice==0){
+		start = clock();
+		cycpow = pow(2,cycles);
+		spinadult.evolution(accstates, cycpow);
+		cout << endl;
+		cout << cycles << setw(15) << accstates;
+		spinadult.print();
+		finish = clock();
+		time = (finish - start)/((double) CLOCKS_PER_SEC);
+		cout << "time" << endl;
+		cout << setw(15) << time << endl;
+
+		spinadult.reset_statistics();
+		cycpow = pow(2,cycles);
+		spinadult.evolution(accstates, cycpow);
+		ofile.open(outfilename);
+		ofile << setw(15) << "#E" << setw(15) << "Prob" << endl;
+		for(i=0;i<2*n*n + 1; i++){
+			ofile << setw(15) << (i-n*n)*2 << setw(15) << spinadult.probability[i] << endl;
+		}
+		ofile.close();
+	}
+	if(choice==1){
+		ofile.open(outfilename);
+		ofile << "#cyc" << setw(15) << "accs";
+		ofile << setw(15) << "<E>" << setw(15) << "e_v" << setw(15) << "<M>" << setw(15) << "m_v";
+		ofile << setw(15) << "<|M|>" << setw(15) << "Cv" << setw(15) << "Khi" << endl;
+		for(i=0;i<cycles+1;i++){
+			if(align==0){
+				spinadult.spintoddler.randomize();
+			}
+			else if(align==1){
+				spinadult.spintoddler.align_up();
+			}
+			spinadult.reset_statistics();
+			start = clock();
+			cycpow = pow(2,i);
+			spinadult.evolution(accstates, cycpow);
+			ofile << cycpow << setw(15) << accstates;
+			ofile << setw(15) << spinadult.energy_mean << setw(15) << pow(spinadult.e_variance,0.5);
+			ofile << setw(15) << spinadult.magn_mean << setw(15) << pow(spinadult.m_variance,0.5);
+			ofile << setw(15) << spinadult.magn_mean_abs << setw(15) << spinadult.heat_capacity << setw(15) << spinadult.susceptibility << endl;
+			finish = clock();
+			time = (finish - start)/((double) CLOCKS_PER_SEC);
+			cout << setw(15) << i << setw(15) << cycpow << setw(15) << time << " seconds" << endl;
+		}
+		ofile.close();
+	}
+	if(choice==2){
+		ofile.open(outfilename);
+		ofile << "#T" << setw(15) << "accs";
+		ofile << setw(15) << "<E>" << setw(15) << "e_v" << setw(15) << "<M>" << setw(15) << "m_v";
+		ofile << setw(15) << "<|M|>" << setw(15) << "Cv" << setw(15) << "Khi" << endl;
+
+		cycpow = pow(2,cycles);
+		if(align==0){
+			spinadult.spintoddler.randomize();
+		}
+		else if(align==1){
+			spinadult.spintoddler.align_up();
+		}
+		else if(align==2){
+			spinadult.evolution(accstates, cycpow);
+		}
+
+		for(i=0;i<T+1;i++){
+			start = clock();
+			current_T = 2.0 + (0.4/T)*i;
+			spinadult.spintoddler.T = current_T;
+			spinadult.reset_statistics();
+			spinadult.evolution(accstates, cycpow);
+			ofile << current_T << setw(15) << accstates;
+			ofile << setw(15) << spinadult.energy_mean << setw(15) << pow(spinadult.e_variance,0.5);
+			ofile << setw(15) << spinadult.magn_mean << setw(15) << pow(spinadult.m_variance,0.5);
+			ofile << setw(15) << spinadult.magn_mean_abs << setw(15) << spinadult.heat_capacity << setw(15) << spinadult.susceptibility << endl;
+			finish = clock();
+			time = (finish - start)/((double) CLOCKS_PER_SEC);
+			cout << setw(15) << current_T << setw(15) << accstates << setw(15) << time << " seconds" << endl;
+		}
+		ofile.close();
+	}
+
+	return 0;
+}

@@ -1,0 +1,292 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{graphicx}
+\usepackage{color}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage{hyperref}
+
+\lstset{language=c++}
+\lstset{basicstyle=\tiny}
+\lstset{backgroundcolor=\color{white}}
+\lstset{frame=single}
+\lstset{stringstyle=\ttfamily}
+\lstset{keywordstyle=\color{red}\bfseries}
+\lstset{commentstyle=\itshape\color{blue}}
+\lstset{showspaces=false}
+\lstset{showstringspaces=false}
+\lstset{showtabs=false}
+\lstset{breaklines}
+
+\title{Computational Development of the 2D Ising Model}
+\author{John Bower}
+\date{April 1 2016}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\end{abstract}
+
+\begin{itemize}
+\item All source files and benchmark calculations can be found at \url{https://github.com/johnbower2012/CPMSU_work/tree/master/project4}.
+\item A list of all code files can be found at the end of this document.
+\end{itemize}
+
+\section{Introduction}
+
+Statistical Physics makes open those areas of interest involving quantities of particles far too large to be calculated normally, with numbers best measured in multiples of Avagadro's number, $6.022 x 10^23$. In this realm exact descriptions of specific states are replaced by bulk statements, mean values and systemwide properties. Through such methodologies, comprehensive descriptions of phase transitions in media, such as liquid to gas in water or liquid to superliquid in helium, are possible. An interesting and perhaps the classic example in this field is the Ising Model, a system wherein particles capable of only spin up or down are placed upon a grid in n-dimensions. By considering the interaction between neighboring spins, a description of the system's energy, magnetization, heat capacity, and magnetic susceptibility can be built, all from the simple description of its energy,
+\begin{equation}
+H = -J\sum\limits_{<ij>}s_is_j,
+\end{equation}
+where $J$ is the energy per spin pair, $<ij>$ describes a sum over only neighboring spins, and $s_i$ and $s_j$ are the respective spins of locations $i$ and $j$. From this statement of energy and 
+an application of the Boltzmann distribution, where we say the probability of the system having an energy $E_i$ is
+\begin{equation}
+P(E_i) = \frac{e^{-E_i/T}}{\sum\limits^N_{i=1} e^{-E_i/T}} = \frac{e^{-E_i\beta}}{Z},
+\end{equation}
+we will investigate these bulk properties and search for a phase transition.
+
+\section{Theory}
+
+In this section we outline the mathematics of taylor expansions and the discretized notation in order to understand the approximations used in both the Verlet and Runge-Kutta methods.
+
+\subsection{Taylor Expansion}
+
+In principle, a taylor expansion uses an infinite series to exactly describe the behavior of a given function in terms of polynomial, that is given a function f(x) we may say
+\begin{equation}
+f(x+h) = \sum\limits_{i=0}^{\infty} \frac{h^i}{i!}f^{(i)}(x),
+\end{equation}
+where $f^{(i)}$ is the $i$th derivative of f(x) and $h$ is some small step in x. While the infinite series may be an exact description, in practice we are unable to sum to infinity and so must truncate at some step $n$,
+\begin{align}
+f(x+h) 	&\approx \sum\limits_{i=0}^{n} \frac{h^i}{i!}f^{(i)}(x) + O(h^{(n+1)})\\
+		&= f(x) + hf^{(1)}(x) + \frac{h^2}{2}f^{(2)}(x) + \dots + \frac{h^n}{n!}f^{(n)}(x),
+\end{align}
+where we have noted that the error goes as $h^{(n+1)}$. 
+
+Thus, given some function f(x) and its relation to its derivatives, we are able to approximate its evolution as we advance forward by some step size $h$, from $x \rightarrow x+h$.
+
+\subsection{Discretization}
+
+With the concept of taylor expansions settled, we turn our attention to discretizing the evolution of some function $f(x)$ across some range $x_{min} \rightarrow x_{max}$. Given some choice for the number of grid points, $n$, we define the step size, $h$ from above, as $h = \frac{x_{max} - x_{min}}{n}$, so that we may then say that our grid points are represented by the set which ranges from $x_0 = x_{min}, \dots, x_i = x_{min} + ih, \dots, x_n = x_{min} + nh = x_{max}$. Whereby we may define
+\begin{equation}
+f_{i+1} = f_i + hf^{(1)}_i + \frac{h^2}{2}f^{(2)}_i + \dots + \frac{h^n}{n!}f^{(n)}_i,
+\end{equation}
+so that given a set of initial conditions, $f^{(m)}(x_{min}) = a_m$, where $0\leq m \leq k$, we may calculate stepwise through to $f(x_{max})$.
+
+Thus, we are ready to begin discussion of Verlet and Runge-Kutta. 
+
+\section{Methodology}
+
+In this section we discuss and implement the Verlet and Runge-Kutta algorithms themselves, building upon the work of the previous seection. My own code written for this task is included in my github repository, as seen at the beginning of the project, which includes method selections of RK4, Verlet, and Verlet with relativistic corrections coupled with optional output for the pure and complete evolution, output of once per earth year, and multiple choices for perihelion and aphelion outputs. The time of execution is written to screen for each method.
+
+First however, we recognize that equation (1) may be rewritten from a second-order differential equation into two first-order differential equations by recognizing that
+\begin{equation}
+\frac{dx(t)}{dt} = v(t)
+\end{equation}
+so that
+\begin{equation}
+\frac{d^2x(t)}{dt^2} = \frac{dv(t)}{dt} = \frac{F(x(t),t)}{m}.
+\end{equation}
+Thus we may proceed by calculating both the body's position, x(t), and velocity, v(t), in small time steps $h$ given the total force, F(x(t),t), acting upon it. Note that we will be extending the discretized notation to both $x(t)$ and $t$, such that $x_i = x(t_i)$ and $t_i = t_{min} + ih$, whereby we may assume that $F_i = F(x_i, t_i) = F(x(t_i),t_i)$.
+
+
+\subsection{Verlet Algorithm}
+
+The Verlet algorithm involves an algebraic manipulation of taylor expansions. We begin by considering the expansions of x(t) and v(t) to second order. Thus, we have
+\begin{align}
+x(t+h) 	&= x(t) + h\frac{dx(t)}{dt} + \frac{h^2}{2}\frac{d^2x(t)}{dt^2} \\
+		&= x(t) + hv(t) + \frac{h^2}{2}\frac{F(x(t),t)}{m}
+\end{align}
+and
+\begin{align}
+v(t+h) 	&= v(t) + h\frac{dv(t)}{dt} + \frac{h^2}{2}\frac{d^2v(t)}{dt^2} \\
+		&= v(t) + h\frac{F(x(t),t)}{m} + \frac{h^2}{2}\frac{d^2v(t)}{dt^2}.
+\end{align}
+Here we notice that there is no obvious substition for $\frac{d^2v(t)}{dt^2}$, so we must once more consider an approximation. Expanding v(t+h) to first order,
+\begin{equation}
+v(t+h) 	= v(t) + h\frac{dv(t)}{dt},
+\end{equation}
+we see that by isolating $h\frac{dv(t)}{dt}$ and taking the derivative of each side, we arrive at
+\begin{equation}
+h\frac{d^2v(t)}{dt^2} = \frac{dv(t+h)}{dt} - \frac{dv(t)}{dt},
+\end{equation}
+or
+\begin{align}
+\frac{h^2}{2}\frac{d^2v(t)}{dt^2} &= \frac{h}{2}\bigg(\frac{dv(t+h)}{dt} - \frac{dv(t)}{dt}\bigg) \\
+									&= \frac{h}{2}\bigg(\frac{F(x(t+h),t+h)}{m} - \frac{F(x(t),t)}{m}\bigg).
+\end{align}
+Whence we arrive at both x(t+h) and v(t+h)
+\begin{align}
+x(t+h) 	&= x(t) + h\frac{v(t)} + \frac{h^2}{2}\frac{F(x(t),t)}{m} \\
+v(t+h)	&= v(t) + \frac{h}{2}\bigg(\frac{F(x(t+h),t+h)}{m} + \frac{F(x(t),t)}{m}\bigg).
+\end{align}
+Arriving in discretized fashion at our final form,
+\begin{align}
+x_{i+1} &= x_i + hv_i + \frac{h^2}{2}\frac{F_i}{m} \\
+v_{i+1}	&= v_i + \frac{h}{2}\bigg(\frac{F_{i+1}}{m} + \frac{F_i}{m}\bigg),
+\end{align}
+we are now able to solve for both the final positions and velocities given only initial conditions and the relation of $\frac{d^2x(t)}{dt^2} = F(x(t), t)$.
+
+\subsection{Runga-Kutta Algorithm (to fourth order)}
+
+The Runge-Kutta algorithm follows from an implementation of the Fundamental Theorem of Calculus and Simpson's rule, namely
+\begin{equation}
+\int\limits_t^{t+h} f(t,y(t))dt = y(t+h) - y(t), \hspace{0.5 cm} where \frac{dy(t)}{dt} = f(t,y(t)),
+\end{equation}
+and
+\begin{equation}
+\int\limits_t^{t+h} f(t,y(t))dt = \frac{h}{6}\bigg(f(t,y(t)) + 4f\Big(t+\frac{h}{2},y\big(t+\frac{h}{2}\big)\Big)+f\Big(t+h,y\big(t+h\big)\Big)\bigg),
+\end{equation}
+respectively. By combining these two rules into discretized form, we see clearly that
+\begin{align}
+y_{i+1} &= y_i + \frac{h}{6}\Big(f\big(t_i,y_i\big) + 4f\big(t_{i+\frac{1}{2}},y_{i+\frac{1}{2}}\big)+f\big(t_{i+1},y_{i+1}\big)\Big) \\
+		&= y_i + \frac{h}{6}\Big(f_i + 2f_{i+\frac{1}{2}} + 2f_{i+\frac{1}{2}} + f_{i+1}\Big)
+\end{align}
+where we have purposefully split the middle term into two equal halves and let $f_k = f(t_k,y_k)$. First, however, it is important to consider conceptionally what is happening. Here we are using a weighted average of slopes across the given $t \rightarrow t+h$ so as to better approximate the change from $y(t) \rightarrow y(t+h)$. With this in mind, we begin by rewriting our term as
+\begin{equation}
+y(t+h) = y(t) + \frac{h}{6}\big(k_1 + 2k_2 + 2k_3 + k_4\big),
+\end{equation}
+where we define the $k_1, \dots, k_4$ from the $f(t,y(t))$ in the following manner. Follow closely how each subsequent slope is used to determine the next.
+\begin{align}
+k_1 &= f_i \\
+y_{i+\frac{1}{2}} &= y_i + \frac{h}{2}k_1 \\
+k_2 &= f_{i+\frac{1}{2}} \\
+y_{i+\frac{1}{2}} &= y_i + \frac{h}{2}k_2 \\
+k_3 &= f_{i+\frac{1}{2}} \\
+y_{i+1} = &= y_i + hk_3 \\
+k_4 &= f_{i+1}
+\end{align}
+Hence we are finally able to calculate
+\begin{equation}
+y_{i+1} = y_i + \frac{h}{6}\big(k_1 + 2k_2 + 2k_3 + k_4\big),
+\end{equation}
+where all quantities on the right side are known. 
+	While the above is the general method of implementing RK4, our method, however, is slightly more involved since we lack any general analytic form for the first deriative. Thus we must perform these calculations not only for $x(t)$, but also for $v(t,x(t))$. Thus we proceed as follows where we add an additional subscript on the $k$ values so as to keep the slopes for the position and velocity separate. Note also that in the following calculations $F_{i+\frac{1}{2}}$ refers to the new force at the new position $x_{i+\frac{1}{2}}$.
+\begin{align}
+k_{1v} & = F_i \\
+k_{1x} &= v_i \\
+x_{i+\frac{1}{2}} &= x_i + \frac{h}{2}k_{1x} \\
+k_{2v} &= \frac{F_{i+\frac{1}{2}}}{m} \\
+k_{2x} &= v_i + \frac{h}{2}k_{2v} \\
+x_{i+\frac{1}{2}} &= x_i + \frac{h}{2}k_{2x} \\
+k_{3v} &= \frac{F_{i+\frac{1}{2}}}{m} \\
+k_{3x} &= v_i + \frac{h}{2}k_{3v} \\
+x_{i+1} &= x_i + hk_{3x} \\
+k_{4v} &= \frac{F_{i+1}}{m} \\
+k_{4x} &= v_i + hk_{4v} \\
+\end{align}
+Whence we are able to calculate both $x_{i+1}$ and $v_{i+1}$ as
+\begin{align}
+x_{i+1} &= x_i + \frac{h}{6}\big(k_{1x} + 2k_{2x} + 2k_{3x} + k_{4x}\big) \\
+v_{i+1} &= v_i + \frac{h}{6}\big(k_{1v} + 2k_{2v} + 2k_{3v} + k_{4v}\big).
+\end{align}
+Whence we are able to calculate the evolution of our system given initial conditions and with some specified total force. 
+
+\subsection{Expansion to Three Dimensions, n-bodies}
+
+In our example problem, we model first a two body system in two dimensions, then an n-body system in three dimensions, both plus time. Note that this only adds extra subscripts to our positions and velocities, such that we have three independent axes which follow the same evolution. The only mixing comes from the force which in our case relies on the magnitude of the relative position vectors. Thus we would proceed as above in both algorithms, except that we must first calculate the new position along each axis, $x_{i+1}, y_{i+1}, z_{i+1}$, in order to calculate the magnitude of the position vector, $r_{i+1}$. With this, we are then able to calculate the new force vector, $F_{i+1}$, and so calculate the velocities. 
+
+When considering the case of simultaneously mobile n-bodies, the method proceeds exactly as above, excepting that once all new positions are calculated for the first body, they must be calculated for each other body before the net forces may be calculated. Note that the net force on a given body $i$ will simply be the superposition of the other bodies acting upon it.
+
+Thus, with three dimensions (plus time) and n-bodies, the formula is simply to calculate the new position for each body, the new forces given the new positions, and then the new velocities given the new forces and positions. 
+
+\section{Results}
+
+Here we begin by observing the stability and speed of each algorithm using the case of circular motion of the earth around the sun. We observe the radius of the earth after a number of revolutions around the sun given different numbers of gri	d points. The code is written in project3.cpp, which links to project3-library.h. If compiled from command line in the same folder and no additions are required to "g++ -o project3.x project3.cpp." Unit tests for conservation of energy and momentum are included in project3-unittest.cpp which links to project3-library-unittest.h. In Figure (1) we see a comparison of the times for each metholodogy over a period of five years. In Figure (2) we see the case of earth-sun circular motion. In Figures (3), (4), and (5) we see a comparison of various initial speeds for earth until it escapes orbit. In Figures (6), (7), and (8) we see the effect of the addition of Jupiter, with its regular mass, ten times its mass, and one thousand times its mass, on earth's orbit around the sun. In Figures (9) and (10) we see the evolution of the full solar system over 250 years, in (11) and (12) of the interior planets given a full system over 50 years. 
+
+\begin{figure}
+\centering
+\begin{tabular}{| l | l | l | l | l | l | l |}
+\hline
+n  	 & RK4 & RK4 time [s] & Verlet & Verlet time [s] & V. Rel. Cor & V.RC time[s]  \\ \hline
+100   &  0.77813979  &  0.000188   &   1.004426   & 7.7e-5    & 1.0010571 & 6.3e-5 \\ \hline
+200   &  0.98847564  &  0.000354   &  1.0001543   & 0.000105  & 1.0000138 & 9.2e-5 \\ \hline
+500   &  0.9993386 	 &  0.00061    &  1.0000026   & 0.000313  & 1.0000001 & 0.000244 \\ \hline
+1000   &  0.99991847 &  0.001717   &  1.0000001	  & 0.00052   & 1		  & 0.000493 \\ \hline
+2000   &  0.99998984 &  0.002993   &   1	 	  & 0.00102   & 1		  & 0.000875 \\ \hline
+5000   &  0.99999935 &  0.006268   &   1		  & 0.001993  & 1		  & 0.002277 \\ \hline
+10000  &  0.99999992 &  0.014253   &   1		  & 0.004282  & 1		  & 0.005601 
+\end{tabular}
+\caption{A table for the evolution of the circular motion earth-sun system after a period of five years. The exact answer should be a radius of one AU. The number of grid points is given under $n$, with the final radius and computation time given for the RK4, Verlet, and Verlet with relativistic correction provided in the corresponding row. It seems clear that at high enough values of n, the Verlet algorithm is approximately three times faster than the RK4, with the VRC lying between them. This implementation for the RK4 algorithm approaches the eact solution from the bottom, whereas the Verlet approaches from above. An examination of the data over the course of the five years reveals that the radius and velocity remain constant, with their direction perpendicular, so the potential and kinetic energies, as well as the angular momentum, remain constant.}
+\end{figure}
+\begin{figure}
+\centering
+\includegraphics[width=1.0\textwidth]{coplanar_earthsun.pdf}
+\caption{Here we see the coplanar earth-sun system with no evolution for the sun considered. The earth remains in a near perfect circular orbit given a starting speed of 2$\pi$ AU/yr and a radius of one AU.}
+\end{figure}
+\begin{figure}
+\centering
+\includegraphics[width=1.0\textwidth]{coplanar_earthsun_v11.pdf}
+\caption{Here we see the coplanar earth-sun system with no evolution for the sun considered. The earth has been given an initial speed of 2.2$\pi$. We observe that the orbit has become noticeable elliptical, with an aphelion of over 1.5 AU and a period of approximately 1.5 years.}
+\end{figure}
+\begin{figure}
+\centering
+\includegraphics[width=1.0\textwidth]{coplanar_earthsun_v14.pdf}
+\caption{Here we see the coplanar earth-sun system with no evolution for the sun considered. The earth has been given an initial speed of 2.8$\pi$. The earth's orbit has become widely elliptical, with an aphelion of over fifty AU and an orbital period of approximately 127 years. It has nearly reached escape velocity.}
+\end{figure}
+\begin{figure}
+\centering
+\includegraphics[width=1.0\textwidth]{coplanar_earthsun_vsqrt2.pdf}
+\caption{Here we see the coplanar earth-sun system with no evolution for the sun considered. The earth has been given an initial speed of 2$\sqrt{2}\pi$, which equals the calculated escape velocity. Clearly, the earth has formed a hyperbolic curve and will not be returning to the sun. The calculation shown was an evolution of 200 years, and higher time frames were conducted as verification.}
+\end{figure}
+\begin{figure}
+\centering
+\includegraphics[width=1.0\textwidth]{coplanar_sej1_radius.pdf}
+\caption{Here we see effect of the coplanar sun-earth-jupiter system on the earth's orbit with no evolution for the sun considered. The planets have each been given their respective mean orbital radius and velocity as initial conditions. We see that while Jupiter provides only small perturbations, they are clearly visible.}
+\end{figure}
+\begin{figure}
+\centering
+\includegraphics[width=1.0\textwidth]{coplanar_sej10_radius.pdf}
+\caption{Here we see effect of the coplanar sun-earth-jupiter system on the earth's orbit with Jupiter's mass increased tenfold. The planets have each been given their respective mean orbital radius and velocity as initial conditions. We see that an increase in Jupiter's mass provides larger perturbations, but it appears to be periodic and results in a stable orbit for the earth.}
+\end{figure}
+\begin{figure}
+\centering
+\includegraphics[width=1.0\textwidth]{coplanar_sej1000_radius.pdf}
+\caption{Here we see effect of the coplanar sun-earth-jupiter system on the earth's orbit with Jupiter's mass increased thousandfold. The planets have each been given their respective mean orbital radius and velocity as initial conditions. We see that such an increase to Jupiter's mass creates an orbit which, after merely four years, sling shots earth from the solar system. The earth approaches the sun more and more closely during each pass and finally is launched from the solar system. Evolutions for much larger time frames were considered, but this is the best for viewing the initial gain of velocity leading to the expulsion of earth.}
+\end{figure}
+\begin{figure}
+\centering
+\includegraphics[width=1.0\textwidth]{fullss_250years.pdf}
+\caption{Here we see the full solar system with initial conditions given from data on the Jet Propulsion Laboraty's website of March 18, 2016. The evolution is allowed to develop for 250 years see the near full revolution of pluto, the body with the longest orbital period and highest eccentricity. From this scale, we cannot see the inner panets, but we see they must have stable orbits since they have not left the solar system. We see that for a short time pluto is closer to the sun than neptune. The data file shows this much more clearly than the graph.}
+\end{figure}
+\begin{figure}
+\centering
+\includegraphics[width=1.0\textwidth]{fullss_radii_250years.pdf}
+\caption{Here we see the orbital radii over the full 250 year evolution of the solar system from the previous figure. We see that the planets with the highest eccentricity have the most oscillatory orbits. Pluto clearly comes closer to the sun near the end of the 250 years, so once during its orbit. Also we observe that the approximate period can be determined from graph by measuring the distance from one maximum to the next, or one minimum to the next.}
+\end{figure}
+\begin{figure}
+\centering
+\includegraphics[width=1.0\textwidth]{fullss_s-m_50years.pdf}
+\caption{Here we see the evolution of the solar system over 50 years, where all bodies were used for the calculation but only the inner have been plotted for clarity. Note that most inner planets have fairly circular orbits, with mercury being the most elliptical. Luna is the earth's moon, very clearly overlapping the orbit of the earth at this scale.}
+\end{figure}
+\begin{figure}
+\centering
+\includegraphics[width=1.0\textwidth]{fullss_radii_s-m_50years.pdf}
+\caption{Here we see the evolution of the solar system over 50 years, where all bodies were used for the calculation but only the inner have been plotted for clarity. We plot the radii versus time in years to get a clear picture of the period and eccentricity of each body in the interior of the solar system. At this length scale we are able to discern each path clearly; however, due to the time scale the periods of mercury and venus are unclear. The data pulls them out clearly, but this graph has been prepared with a time scale sufficient to demonstrate their stability and the periodicity of their orbits.}
+\end{figure}
+
+\section{Discussion}
+
+Here we discuss the computational speed and stability of the algorithms, as well as the effects of varying the initial velocity and the effects of other planets on the orbital path of the earth. 
+
+We see clearly that the Verlet algorithm is not only faster but also in this particular implementation seems to propagate a lower error. Verlet runs in one-third the time and propagates error as $h^4$ as opposed with RK4's $h^3$. Further, the Verlet with relativistic corrections rights only slightly slower than the full Verlet algorithm with a slight improvement in error propagation. This is likely due to the necessity of approximating not only the position but also the velocity using the RK4 method. In simpler implementations, RK4 exceeds Verlet in accuracy. It should be noted that this is for the ideal case of circular motion with only the orbiting body being allowed to evolve, and these change as additional bodies are added and allowed to be mobile. The error propagation and relative speed remain similar; however, care must be taken for large systems since many, many more numerical evaluations will be required than for those with fewer bodies. This increase in the number of floating point operations will mean that, while the error propagates the same, the error will sum to be significant much sooner. Consider increasing the steps until a stable solution is found; then, optimize for computation time versus accuracy.
+
+In the case of circular motion, we see that the orbital speed required for the earth for such a path is $2\pi \frac{AU}{yr}$ at a distance of one $AU$. As we increase the speed closer and closer to the escape velocity of $2sqrt(2)\pi \frac{AU}{yr}$, we observe that the orbit becomes more and more elliptical and the period increases. Once the speed is increased to $2\sqrt{2}\pi \frac{AU}{yr}$, the earth finally will escape and cease to orbit the sun.
+
+With the additional of Jupiter to the system we see that the orbital of earth is only slightly perturbed. Instead of a perfectly circular orbit, we see deviations from this path due to Jupiter's sizeable mass, about one one-thousandth that of the sun. As we increase the mass of Jupiter tenfold, the perturbations become larger, but still relatively small. However, if we increase Jupiter's mass to one thousand times the original, near that of the sun, we see that earth suffers from a slingshot effect which ejects it from the solar system just after four years. 
+
+Once all nine original planets and the earth's moon have been added for consideration, we see that the number of required steps increases. If the time under consideration is sufficiently small, one thousand steps per year suffices. If long periods of evolution are considered, such as many hundreds of years or several millenia, the required steps increase. Mercury is clearly the least stable since it has been the first ejected in all calculations performed in development of the code. The paths of each planet can be seen using a three dimensional plot, and the period of each orbit can be extracted from a radius versus time graph or from output option four. The solar system model is stable for millenia given sufficient steps, but computation time quickly increases to large values.
+
+\section{Conclusion}
+
+In this project we have developed code for calculating the evolution of a system of bodies given a set of initial positions and velocities, here specialized to the gravitational problem. We investigated the Verlet and Runge-Kutta methodologies for solving this system and found that, for this particular implementation of RK4, the Verlet algorithm requires one-third the time and fewer steps per year, propagating error as $h^4$ as opposed to $h^3$. Using these algorithms, we then applied the code to several variations of the solar system. We found that velocities required for the earth to have a circular orbit or to escape the sun's pull to be $2\pi$ and $2\sqrt{2}\pi \frac{AU}{yr}$, respectively. Further, we find that Jupiter adds only small perturbations to earth's orbit until its mass is increased to near that of the sun, at which point the earth escapes the system. Lastly, the solar system appears to be stable for several millenia as calcualted by this code, which bodes well for us all.
+
+\section{References}
+
+[1] M. Hjorth-Jensen. Computational Physics, lecture notes spring 2016. Department of Physics, Michigan State University, 2016. \newline
+[2] Solar System Dynamics. Jet Propulsion Laboratory: California Institute of Technology.  [accessed 18 March 2016; ssd.jpl.nasa.gov/horizons.cgi]
+
+\newpage
+
+\section*{Code Attachment}
