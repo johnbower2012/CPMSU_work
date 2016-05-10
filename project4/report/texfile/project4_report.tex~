@@ -6,6 +6,7 @@
 \usepackage{amssymb}
 \usepackage{listings}
 \usepackage{hyperref}
+\usepackage{tikz}
 
 \lstset{language=c++}
 \lstset{basicstyle=\tiny}
@@ -21,12 +22,15 @@
 
 \title{Computational Development of the 2D Ising Model}
 \author{John Bower}
-\date{April 1 2016}
+\date{May 5 2016}
 
 \begin{document}
 \maketitle
 
 \begin{abstract}
+
+In this project I investigate the 2D Ising Model using the Metropolis algorithm. The algorithm successfully reproduces the exact solutions from the two-by-two case and runs larger grid sizes to equilibrium within several seconds to several minutes. By investigating the curves for the mean energy, mean magnetization, heat capacity, and magnetic susceptibility as functions of temperature, we find the indications of a phase transition; using these critical temperatures from varying finite grid sizes, we reproduce the critical temperature in the finite limit within error, 2.263 $\pm$ 0.007 compared with $\approx$2.269.
+
 \end{abstract}
 
 \begin{itemize}
@@ -36,257 +40,434 @@
 
 \section{Introduction}
 
-Statistical Physics makes open those areas of interest involving quantities of particles far too large to be calculated normally, with numbers best measured in multiples of Avagadro's number, $6.022 x 10^23$. In this realm exact descriptions of specific states are replaced by bulk statements, mean values and systemwide properties. Through such methodologies, comprehensive descriptions of phase transitions in media, such as liquid to gas in water or liquid to superliquid in helium, are possible. An interesting and perhaps the classic example in this field is the Ising Model, a system wherein particles capable of only spin up or down are placed upon a grid in n-dimensions. By considering the interaction between neighboring spins, a description of the system's energy, magnetization, heat capacity, and magnetic susceptibility can be built, all from the simple description of its energy,
+
+Statistical Physics makes open those areas of interest involving quantities of particles far too large to be calculated normally, with numbers best measured in multiples of Avagadro's number, $6.022 x 10^{23}$. In this realm exact descriptions of specific states are replaced by bulk statements, mean values and systemwide properties. Through such methodologies, comprehensive descriptions of phase transitions in media, such as liquid to gas in water or liquid to superliquid in helium, are possible. 
+
+An interesting and perhaps the classic example in the statisticial field is the Ising Model, a system wherein particles capable of only spin up or down are placed upon a grid in n-dimensions. By considering the interaction between neighboring spins, a description of the system's energy, magnetization, heat capacity, and magnetic susceptibility can be built, all from the simple description of its energy,
 \begin{equation}
 H = -J\sum\limits_{<ij>}s_is_j,
 \end{equation}
 where $J$ is the energy per spin pair, $<ij>$ describes a sum over only neighboring spins, and $s_i$ and $s_j$ are the respective spins of locations $i$ and $j$. From this statement of energy and 
-an application of the Boltzmann distribution, where we say the probability of the system having an energy $E_i$ is
+an application of a specified distribution, we are able to make statements about the mean quantities of a system, as
 \begin{equation}
-P(E_i) = \frac{e^{-E_i/T}}{\sum\limits^N_{i=1} e^{-E_i/T}} = \frac{e^{-E_i\beta}}{Z},
+<A> = \sum\limits^N_{i=1} A_iP_i,
 \end{equation}
-we will investigate these bulk properties and search for a phase transition.
+where $A$ is the desired mean quanitity and $P$ is its respective probability.
+
+Herein we discuss the two-dimensional Ising model with varying grid sizes and periodic boundary conditions, so that each particle has four nearest neighbors. To do so we implement a Monte Carlo calculation with a detailed balance scheme and study the results as functions of monte carlo cycles and temperature.
 
 \section{Theory}
 
-In this section we outline the mathematics of taylor expansions and the discretized notation in order to understand the approximations used in both the Verlet and Runge-Kutta methods.
+In this section we will derive the exact solutions for the $2 x 2$ grid as a demonstration of the methodology and as an exact test for the algorithm. Important properties include mean energy, mean magnetization, heat capacity, and magnetic susceptibility, as well as the probability distribution which determines these values.
 
-\subsection{Taylor Expansion}
+In terms of arrangements, the two-by-two Ising Model is convenient because we may determine all possible configurations quickly and easily. There are $2^4$ arrangements, but only six unique in terms of their properties. They are
 
-In principle, a taylor expansion uses an infinite series to exactly describe the behavior of a given function in terms of polynomial, that is given a function f(x) we may say
+\begin{center}
+	\begin{tikzpicture}
+		\draw[thick,->] (0,0) -- (0,0.4);
+		\draw[thick,->] (0,0.8) -- (0,1.2);
+		\draw[thick,->] (0.8,0) -- (0.8,0.4);
+		\draw[thick,->] (0.8,0.8) -- (0.8,1.2);
+	\end{tikzpicture}
+	,
+	\hspace{1 cm}
+	\begin{tikzpicture}
+		\draw[thick,->] (0,0.4) -- (0,0);
+		\draw[thick,->] (0,0.8) -- (0,1.2);
+		\draw[thick,->] (0.8,0) -- (0.8,0.4);
+		\draw[thick,->] (0.8,0.8) -- (0.8,1.2);
+	\end{tikzpicture}
+	,
+	\hspace{1 cm}
+	\begin{tikzpicture}
+		\draw[thick,->] (0,0.4) -- (0,0);
+		\draw[thick,->] (0,1.2) -- (0,0.8);
+		\draw[thick,->] (0.8,0) -- (0.8,0.4);
+		\draw[thick,->] (0.8,0.8) -- (0.8,1.2);
+	\end{tikzpicture}
+	,
+	\hspace{1 cm}
+	\begin{tikzpicture}
+		\draw[thick,->] (0,0.4) -- (0,0);
+		\draw[thick,->] (0,0.8) -- (0,1.2);
+		\draw[thick,->] (0.8,0) -- (0.8,0.4);
+		\draw[thick,->] (0.8,1.2) -- (0.8,0.8);
+	\end{tikzpicture}
+	,
+	\hspace{1 cm}
+	\begin{tikzpicture}
+		\draw[thick,->] (0,0.4) -- (0,0);
+		\draw[thick,->] (0,1.2) -- (0,0.8);
+		\draw[thick,->] (0.8,0.4) -- (0.8,0);
+		\draw[thick,->] (0.8,0.8) -- (0.8,1.2);
+	\end{tikzpicture}
+	,
+	\hspace{1 cm}
+	\begin{tikzpicture}
+		\draw[thick,->] (0,0.4) -- (0,0);
+		\draw[thick,->] (0,1.2) -- (0,0.8);
+		\draw[thick,->] (0.8,0.4) -- (0.8,0);
+		\draw[thick,->] (0.8,1.2) -- (0.8,0.8);
+	\end{tikzpicture}
+	,
+\end{center}
+\begin{center}
+(a)
+\hspace{1.6 cm}
+(b)
+\hspace{1.6 cm}
+(c)
+\hspace{1.6 cm}
+(d)
+\hspace{1.6 cm}
+(e)
+\hspace{1.6 cm}
+(f)
+\end{center}
+
+where we have ordered the states from all spins up through all spins down. Note that there are two unique orientations with two spins up and two spins down. They are unique in terms of energy considerations, as shown in the table below. Another important property to consider is the magnetization of the system, determined as
 \begin{equation}
-f(x+h) = \sum\limits_{i=0}^{\infty} \frac{h^i}{i!}f^{(i)}(x),
+M = \sum\limits^N_{i=1} s_i,
 \end{equation}
-where $f^{(i)}$ is the $i$th derivative of f(x) and $h$ is some small step in x. While the infinite series may be an exact description, in practice we are unable to sum to infinity and so must truncate at some step $n$,
-\begin{align}
-f(x+h) 	&\approx \sum\limits_{i=0}^{n} \frac{h^i}{i!}f^{(i)}(x) + O(h^{(n+1)})\\
-		&= f(x) + hf^{(1)}(x) + \frac{h^2}{2}f^{(2)}(x) + \dots + \frac{h^n}{n!}f^{(n)}(x),
-\end{align}
-where we have noted that the error goes as $h^{(n+1)}$. 
+where $s_i$ is the spin of the $i$th particle, as before. With this in mind, we construct a summary of the properties in Figure (1).
+\begin{figure}
+\centering
+\begin{tabular}{| l | l | l | l | l |}
+\hline
+ & Spins Up & Count & Magnetization & Energy  \\ \hline
+(a) & 4 & 1 & 4 & -8J \\ \hline
+(b) & 3 & 4 & 2 & 0 \\ \hline
+(c) & 2 & 4 & 0 & 0 \\ \hline
+(d) & 2 & 2 & 0 & 8J \\ \hline
+(e) & 1 & 4 & -2 & 0 \\ \hline
+(f) & 0 & 1 & -4 & -8J \\ \hline
+\end{tabular}
+\caption{Here we compile the various important properties of the two-by-two spin system, letters referring to the diagram. Particularly important to distinguish are cases (c) and (d). Due to their configurations, they are unique in terms of count and energy configuration. Observe that in (c) each particle has two aligned and two anti-aligned neighbors with periodic boundary conditions, so the total energy is zero. In the case of (d), each particle's neighbors are all anti-aligned so we see the energy total is $8J$, the highest for the entire system.}
+\end{figure}
 
-Thus, given some function f(x) and its relation to its derivatives, we are able to approximate its evolution as we advance forward by some step size $h$, from $x \rightarrow x+h$.
-
-\subsection{Discretization}
-
-With the concept of taylor expansions settled, we turn our attention to discretizing the evolution of some function $f(x)$ across some range $x_{min} \rightarrow x_{max}$. Given some choice for the number of grid points, $n$, we define the step size, $h$ from above, as $h = \frac{x_{max} - x_{min}}{n}$, so that we may then say that our grid points are represented by the set which ranges from $x_0 = x_{min}, \dots, x_i = x_{min} + ih, \dots, x_n = x_{min} + nh = x_{max}$. Whereby we may define
+For the Ising model we apply the Boltzmann distribution, wherein the probability of a given state is determined by its energy as
 \begin{equation}
-f_{i+1} = f_i + hf^{(1)}_i + \frac{h^2}{2}f^{(2)}_i + \dots + \frac{h^n}{n!}f^{(n)}_i,
+P(E_i) = \frac{e^{-E_i/T}}{\sum\limits^N_{i=1} e^{-E_i/T}} = \frac{e^{-E_i\beta}}{Z},
 \end{equation}
-so that given a set of initial conditions, $f^{(m)}(x_{min}) = a_m$, where $0\leq m \leq k$, we may calculate stepwise through to $f(x_{max})$.
+where we define $\beta$ for convenience and $Z$ as a normalization factor,
+\begin{equation}
+\beta = \frac{1}{T}, \hspace{0.5 cm} Z = \sum\limits^N_{i=1} e^{-\beta E_i}.
+\end{equation}
+With this distribution and the information in Figure (1), we are able to determine the mean energy and magnetization of the system. Summing over all states, the mean energy is 
+\begin{align*}
+<E> &= \frac{1}{Z}\sum\limits^N=16_{i=1} E_i e^{-E_i\beta} \\
+	&= \frac{1}{Z}\bigg( -8Je^{8J\beta} + 2(8J)e^{-8J\beta} + -8Je^{8J\beta} \bigg) \\
+	&= \frac{-16J}{Z}\bigg(e^{8J\beta} - e^{-8J\beta}\bigg) \\
+	&= \frac{-32J}{Z}sinh(8J\beta)
+\end{align*}
+and the mean magnetization is
+\begin{align*}
+<M> &= \frac{1}{Z}\sum\limits^{N=16}_{i=1} M_i e^{-E_i\beta} \\
+	&= \frac{1}{Z}\bigg( 4e^{8J\beta} + 2(4) - 2(4) - 4e^{8J\beta} \bigg) \\
+	&= 0.
+\end{align*}
+Noting that not only is the mean magentization zero but that any non-zero calculated will vary between negative and positive values of the same magnitude depending upon whether the system aligns up or down, each equal in energy and therefore probability, we instead calculate the mean absolute value of magnetization, as
+\begin{align*}
+<|M|> 	&= \frac{1}{Z}\bigg( 4e^{8J\beta} + 4(2) + 4(2) + 4e^{8J\beta} \bigg) \\
+		&= \frac{-16J}{Z}\bigg(8e^{8J\beta} + 16\bigg) \\
+		&= \frac{8}{Z}\bigg(e^{8J\beta} + 2\bigg).
+\end{align*}
+Deriving the partition function as 
+\begin{equation}
+Z = e^{-8J\beta} + 4 + 4 + 2e^{8J\beta} + 4 + e^{-8J\beta} = 12 + 3cosh(8J\beta)
+\end{equation},
+we arrive at our final expressions for the mean energy and mean absolute magentization as
+\begin{equation}
+<E> = -8J\frac{sinh(8J\beta)}{3 + cosh(8J\beta)}
+\end{equation}
+and
+\begin{equation}
+<|M|> = \frac{2e^{8J\beta} + 4}{3+cosh(8J\beta)},
+\end{equation}
+respectively.
 
-Thus, we are ready to begin discussion of Verlet and Runge-Kutta. 
+With these calculated, we turn our attention to the heat capacity, $C_v$, and magnetic susceptibility, $\chi$, defined as
+\begin{equation}
+C_v = \frac{1}{T^2}\bigg(<E^2> - <E>^2\bigg)
+\end{equation}
+and
+\begin{equation}
+\chi = \frac{1}{T}\bigg(<M^2> - <|M|>^2\bigg),
+\end{equation}
+where we have used $<|M|>$ in place of the normal $<M>$ for the magnetic suspceptibility for the reasons stated above. Deriving 
+\begin{equation}
+<E^2> = 64J^2\frac{cosh(8J\beta)}{3+cosh(8J\beta)}
+\end{equation}
+and
+\begin{equation}
+<M^2> = \frac{8e^{8J\beta} + 8}{3 + cosh(8J\beta)},
+\end{equation}
+we find that
+\begin{equation}
+C_v = 64J^2\frac{3cosh(8J\beta) + 1}{(3 + cosh(8J\beta))^2}
+\end{equation}
+and
+\begin{equation}
+\chi = 4\frac{2sinh(8J\beta) + 4cosh(8J\beta) + 3)}{(3 + cosh(8J\beta))^2}.
+\end{equation}
+
+From here, we divide by the total number of spins as a mean of comparing systems of differing sizes, resulting in our final forms of
+\begin{equation}
+\frac{<E>}{N} = -2J\frac{sinh(8J\beta)}{3 + cosh(8J\beta)},
+\end{equation}
+
+\begin{equation}
+\frac{<|M|>}{N} = \frac{1}{2}\frac{e^{8J\beta} + 2}{3+cosh(8J\beta)},
+\end{equation}
+
+\begin{equation}
+\frac{C_v}{N} = 16J^2\frac{3cosh(8J\beta) + 1}{(3 + cosh(8J\beta))^2},
+\end{equation}
+
+\begin{equation}
+\frac{\chi}{N} = \frac{2sinh(8J\beta) + 4cosh(8J\beta) + 3}{(3 + cosh(8J\beta))^2}.
+\end{equation}
+
+These results will be used as the exact answer for comparison with the algorithm and code discussed in the next section.
 
 \section{Methodology}
 
-In this section we discuss and implement the Verlet and Runge-Kutta algorithms themselves, building upon the work of the previous seection. My own code written for this task is included in my github repository, as seen at the beginning of the project, which includes method selections of RK4, Verlet, and Verlet with relativistic corrections coupled with optional output for the pure and complete evolution, output of once per earth year, and multiple choices for perihelion and aphelion outputs. The time of execution is written to screen for each method.
+In this section we discuss and implement an agorithm to calculate the desired quantities for the 2D Ising Model. My own code written for this task is included in my github repository, as seen at the beginning of the project, which includes options for outputting files for the probability distribution of energies, computing each mean quantity as a function of monte carlo cycles, and as each mean quantity as a function of temperature.
 
-First however, we recognize that equation (1) may be rewritten from a second-order differential equation into two first-order differential equations by recognizing that
+\subsection{Metropolis Algorithm and Detailed Balance}
+
+In principle calculating the partition function, or weighting function, is straightforward, but in practice it quickly becomes unmanageable. For the two-by-two case there exist only $2^4$ cases to sort through, but as we increase the grid size the number of possible configurations grows exponentially, as $2^{(n^2)}$, so as we reach a twenty-by-twenty grid, we have $2^{400}$ possible configurations, or ~$2.5*10^{120}$. This is far too many configurations to sort through and so we turn to the Metropolis Algorithm and Detailed Balance in order to avoid the need of calculating the partition function.
+
+In order to apply the Metropolis Algorithm we required that two conditions be fulfilled, first that there exist some stationary distribution $\pi$(x) which fulfills the condition of detailed balance, that is that the transition from each state $x$ to each other state $x'$ is reversible,
 \begin{equation}
-\frac{dx(t)}{dt} = v(t)
+\pi(x)P(x \rightarrow x') = \pi(x')P(x'\rightarrow x),
+\end{equation}
+where P(x $\rightarrow$ x') is the probability of transitioning from a state $x$ to a state $x'$. This is a necessary but not sufficient condition. Secondly we require that the stationary distribution is unique. This condition is met by requiring the system be ergodic, that is that the system must be aperiodic, not return to the same state at fixed intervals, and that it is positive recurrent, that the number of steps for returning to the same state is finite. A simple way to consider this condition is that any one state must be reachable by any another state by a finite number of steps; there can be no closed loops or fixed paths. With these two conditions fulfilled we can begin from the statement of detailed balance to calculate the transition probabilities from one state to another.
+
+Beginning from the statement of detailed balance, choosing to represent the unknown distribution $\pi$(x) with $P$(x), we rewrite the equation to obtain
+\begin{equation}
+\frac{P(x)}{P(x')} = \frac{P(x' \rightarrow x)}{P(x \rightarrow x')}.
+\end{equation}
+Next, since we do not know the transition probabilities, we choose to model them in terms of a multiplication of two quantities, the proposal distribution, $g$, and the acceptance distribution, $A$, as
+\begin{equation}
+P(x \rightarrow x') = g(x \rightarrow x')A(x \rightarrow x'),
 \end{equation}
 so that
 \begin{equation}
-\frac{d^2x(t)}{dt^2} = \frac{dv(t)}{dt} = \frac{F(x(t),t)}{m}.
+\frac{P(x)}{P(x')} = \frac{g(x' \rightarrow x)A(x' \rightarrow x)}{g(x \rightarrow x')A(x \rightarrow x')}.
 \end{equation}
-Thus we may proceed by calculating both the body's position, x(t), and velocity, v(t), in small time steps $h$ given the total force, F(x(t),t), acting upon it. Note that we will be extending the discretized notation to both $x(t)$ and $t$, such that $x_i = x(t_i)$ and $t_i = t_{min} + ih$, whereby we may assume that $F_i = F(x_i, t_i) = F(x(t_i),t_i)$.
-
-
-\subsection{Verlet Algorithm}
-
-The Verlet algorithm involves an algebraic manipulation of taylor expansions. We begin by considering the expansions of x(t) and v(t) to second order. Thus, we have
-\begin{align}
-x(t+h) 	&= x(t) + h\frac{dx(t)}{dt} + \frac{h^2}{2}\frac{d^2x(t)}{dt^2} \\
-		&= x(t) + hv(t) + \frac{h^2}{2}\frac{F(x(t),t)}{m}
-\end{align}
-and
-\begin{align}
-v(t+h) 	&= v(t) + h\frac{dv(t)}{dt} + \frac{h^2}{2}\frac{d^2v(t)}{dt^2} \\
-		&= v(t) + h\frac{F(x(t),t)}{m} + \frac{h^2}{2}\frac{d^2v(t)}{dt^2}.
-\end{align}
-Here we notice that there is no obvious substition for $\frac{d^2v(t)}{dt^2}$, so we must once more consider an approximation. Expanding v(t+h) to first order,
+The simplest method for choosing $g$ is to apply a normal distribution, that is we say the probability of selecting any one state is equal, or one over the total number of states, so that $g(x \rightarrow x')$ = $g(x' \rightarrow x)$, whence
 \begin{equation}
-v(t+h) 	= v(t) + h\frac{dv(t)}{dt},
+\frac{P(x)}{P(x')} = \frac{A(x' \rightarrow x)}{A(x \rightarrow x')}.
 \end{equation}
-we see that by isolating $h\frac{dv(t)}{dt}$ and taking the derivative of each side, we arrive at
+We know the stationary distribution to be given by the Boltzmann distribution, that is 
 \begin{equation}
-h\frac{d^2v(t)}{dt^2} = \frac{dv(t+h)}{dt} - \frac{dv(t)}{dt},
+\frac{A(x' \rightarrow x)}{A(x \rightarrow x')} = \frac{P(x)}{P(x')} = \frac{e^{-E_x\beta}/Z}{e^{-E_{x'}}/Z} = e^{-\big(E_x - E_{x'}\big)\beta} = e^{-\Delta E_{xx'}\beta}.
 \end{equation}
-or
-\begin{align}
-\frac{h^2}{2}\frac{d^2v(t)}{dt^2} &= \frac{h}{2}\bigg(\frac{dv(t+h)}{dt} - \frac{dv(t)}{dt}\bigg) \\
-									&= \frac{h}{2}\bigg(\frac{F(x(t+h),t+h)}{m} - \frac{F(x(t),t)}{m}\bigg).
-\end{align}
-Whence we arrive at both x(t+h) and v(t+h)
-\begin{align}
-x(t+h) 	&= x(t) + h\frac{v(t)} + \frac{h^2}{2}\frac{F(x(t),t)}{m} \\
-v(t+h)	&= v(t) + \frac{h}{2}\bigg(\frac{F(x(t+h),t+h)}{m} + \frac{F(x(t),t)}{m}\bigg).
-\end{align}
-Arriving in discretized fashion at our final form,
-\begin{align}
-x_{i+1} &= x_i + hv_i + \frac{h^2}{2}\frac{F_i}{m} \\
-v_{i+1}	&= v_i + \frac{h}{2}\bigg(\frac{F_{i+1}}{m} + \frac{F_i}{m}\bigg),
-\end{align}
-we are now able to solve for both the final positions and velocities given only initial conditions and the relation of $\frac{d^2x(t)}{dt^2} = F(x(t), t)$.
-
-\subsection{Runga-Kutta Algorithm (to fourth order)}
-
-The Runge-Kutta algorithm follows from an implementation of the Fundamental Theorem of Calculus and Simpson's rule, namely
+We assume that the system will naturally gravitate towards lower energies, so we state without loss of generality that $E_{x'} \leq E_x$, resulting in $\Delta E_{xx'} \geq$ 0. Since we now have a ratio between the acceptance probabilities from $x \rightarrow x'$ and $x' \rightarrow x$, we set the acceptance probability which reduces or maintains energy to one, here $A(x \rightarrow x')$ = 1. Then
 \begin{equation}
-\int\limits_t^{t+h} f(t,y(t))dt = y(t+h) - y(t), \hspace{0.5 cm} where \frac{dy(t)}{dt} = f(t,y(t)),
+A(x \rightarrow x') = 1
 \end{equation}
 and
 \begin{equation}
-\int\limits_t^{t+h} f(t,y(t))dt = \frac{h}{6}\bigg(f(t,y(t)) + 4f\Big(t+\frac{h}{2},y\big(t+\frac{h}{2}\big)\Big)+f\Big(t+h,y\big(t+h\big)\Big)\bigg),
+A(x' \rightarrow x) = e^{-\Delta E_{xx'}\beta},
 \end{equation}
-respectively. By combining these two rules into discretized form, we see clearly that
-\begin{align}
-y_{i+1} &= y_i + \frac{h}{6}\Big(f\big(t_i,y_i\big) + 4f\big(t_{i+\frac{1}{2}},y_{i+\frac{1}{2}}\big)+f\big(t_{i+1},y_{i+1}\big)\Big) \\
-		&= y_i + \frac{h}{6}\Big(f_i + 2f_{i+\frac{1}{2}} + 2f_{i+\frac{1}{2}} + f_{i+1}\Big)
-\end{align}
-where we have purposefully split the middle term into two equal halves and let $f_k = f(t_k,y_k)$. First, however, it is important to consider conceptionally what is happening. Here we are using a weighted average of slopes across the given $t \rightarrow t+h$ so as to better approximate the change from $y(t) \rightarrow y(t+h)$. With this in mind, we begin by rewriting our term as
-\begin{equation}
-y(t+h) = y(t) + \frac{h}{6}\big(k_1 + 2k_2 + 2k_3 + k_4\big),
-\end{equation}
-where we define the $k_1, \dots, k_4$ from the $f(t,y(t))$ in the following manner. Follow closely how each subsequent slope is used to determine the next.
-\begin{align}
-k_1 &= f_i \\
-y_{i+\frac{1}{2}} &= y_i + \frac{h}{2}k_1 \\
-k_2 &= f_{i+\frac{1}{2}} \\
-y_{i+\frac{1}{2}} &= y_i + \frac{h}{2}k_2 \\
-k_3 &= f_{i+\frac{1}{2}} \\
-y_{i+1} = &= y_i + hk_3 \\
-k_4 &= f_{i+1}
-\end{align}
-Hence we are finally able to calculate
-\begin{equation}
-y_{i+1} = y_i + \frac{h}{6}\big(k_1 + 2k_2 + 2k_3 + k_4\big),
-\end{equation}
-where all quantities on the right side are known. 
-	While the above is the general method of implementing RK4, our method, however, is slightly more involved since we lack any general analytic form for the first deriative. Thus we must perform these calculations not only for $x(t)$, but also for $v(t,x(t))$. Thus we proceed as follows where we add an additional subscript on the $k$ values so as to keep the slopes for the position and velocity separate. Note also that in the following calculations $F_{i+\frac{1}{2}}$ refers to the new force at the new position $x_{i+\frac{1}{2}}$.
-\begin{align}
-k_{1v} & = F_i \\
-k_{1x} &= v_i \\
-x_{i+\frac{1}{2}} &= x_i + \frac{h}{2}k_{1x} \\
-k_{2v} &= \frac{F_{i+\frac{1}{2}}}{m} \\
-k_{2x} &= v_i + \frac{h}{2}k_{2v} \\
-x_{i+\frac{1}{2}} &= x_i + \frac{h}{2}k_{2x} \\
-k_{3v} &= \frac{F_{i+\frac{1}{2}}}{m} \\
-k_{3x} &= v_i + \frac{h}{2}k_{3v} \\
-x_{i+1} &= x_i + hk_{3x} \\
-k_{4v} &= \frac{F_{i+1}}{m} \\
-k_{4x} &= v_i + hk_{4v} \\
-\end{align}
-Whence we are able to calculate both $x_{i+1}$ and $v_{i+1}$ as
-\begin{align}
-x_{i+1} &= x_i + \frac{h}{6}\big(k_{1x} + 2k_{2x} + 2k_{3x} + k_{4x}\big) \\
-v_{i+1} &= v_i + \frac{h}{6}\big(k_{1v} + 2k_{2v} + 2k_{3v} + k_{4v}\big).
-\end{align}
-Whence we are able to calculate the evolution of our system given initial conditions and with some specified total force. 
+so that we have defined the transition probability between any two states. 
 
-\subsection{Expansion to Three Dimensions, n-bodies}
+\subsection{Monte Carlo method}
 
-In our example problem, we model first a two body system in two dimensions, then an n-body system in three dimensions, both plus time. Note that this only adds extra subscripts to our positions and velocities, such that we have three independent axes which follow the same evolution. The only mixing comes from the force which in our case relies on the magnitude of the relative position vectors. Thus we would proceed as above in both algorithms, except that we must first calculate the new position along each axis, $x_{i+1}, y_{i+1}, z_{i+1}$, in order to calculate the magnitude of the position vector, $r_{i+1}$. With this, we are then able to calculate the new force vector, $F_{i+1}$, and so calculate the velocities. 
+With our selection distribution, $g$, and our acceptance distribution, $A$, chosen we are able to implement the Monte Carlo method for evolving the system. 
 
-When considering the case of simultaneously mobile n-bodies, the method proceeds exactly as above, excepting that once all new positions are calculated for the first body, they must be calculated for each other body before the net forces may be calculated. Note that the net force on a given body $i$ will simply be the superposition of the other bodies acting upon it.
+It is simple in theory; we select a spin, $s_i$, according to our distribution $g$, here defined to be normal so each spin is weighted equally, and we test flipping it against our distribution $A$. If flipping the spin will lower or maintain the energy, we accept it. If it will raise the energy, we accept it will probability $e^{-\Delta E\beta}$. If the change is accepted, we flip the spin and update the energy and magnetization accordingly. If it is denied, the system remains as it was. We define a number of such selections and tests equal to the number of spins to be one full Monte Carlo cycle.
 
-Thus, with three dimensions (plus time) and n-bodies, the formula is simply to calculate the new position for each body, the new forces given the new positions, and then the new velocities given the new forces and positions. 
+Outling the basic methodology, we
+\begin{enumerate}
+\item[1.]
+Select a random spin $s_i$.
+\item[2.]
+Calculate $\Delta E$
+\item[3.]
+If $\Delta E \leq$ 0, accept the change. Update the system.
+\item[4.]
+If $\Delta E >$ 0, accept the change with probability $e^{-\Delta E\beta}$. Update the system accordingly.
+\item[5.]
+Repeat steps 1-4 $n^2$ times per MC cycle for a square n-by-n grid.
+\item[6.]
+Repeat steps 1-5 until the system reaches equilibrium.
+\end{enumerate}
+
+\subsection{Coding}
+
+Here we discuss how to code the Metropolis algorithm outlined above.
+
+We first generate a matrix of spin values, represented as +1 for spin up and -1 for spin down. We then proceed through the list provided above with slight alterations to clarify the tests involved. Note that the mean energy, mean magentization, and other mean values must only be updated after one full monte carlo cycle. This provides a much more stable and representative picture of the system. Updating after each individual test allows for far too high a variation, whereas updating after one full cycle helps to average out random fluctuations.
+
+\begin{enumerate}
+\item[1.]
+Generator random numbers x, y $\in$ [0,n-1] according to a normal distribution. Select spin $s_{xy}$.
+\item[2.]
+Calculate $\Delta E$.
+\item[3.]
+If $\Delta E \leq$ 0, accept the change. Update the energy and magnetization of the system.
+\item[4.]
+If $\Delta E >$ 0, generator a random number z $\in$ [0.0,1.0] according to a normal distribution. Accept the change if z $\leq e^{-\Delta E\beta}$. Update the system accordingly.
+\item[5.]
+Repeat steps 1-4 $n^2$ times per MC cycle for a square n-by-n grid.
+\item[6.]
+Update the desires mean values.
+\item[7.]
+Repeat steps 1-6 for the desired number of MC cycles.
+\item[8.]
+Divide the mean values by the number of MC cycles.
+\item[9.]
+Calculate heat capacity and magnetic susceptibility from the necessary mean values.
+\end{enumerate}
 
 \section{Results}
 
-Here we begin by observing the stability and speed of each algorithm using the case of circular motion of the earth around the sun. We observe the radius of the earth after a number of revolutions around the sun given different numbers of gri	d points. The code is written in project3.cpp, which links to project3-library.h. If compiled from command line in the same folder and no additions are required to "g++ -o project3.x project3.cpp." Unit tests for conservation of energy and momentum are included in project3-unittest.cpp which links to project3-library-unittest.h. In Figure (1) we see a comparison of the times for each metholodogy over a period of five years. In Figure (2) we see the case of earth-sun circular motion. In Figures (3), (4), and (5) we see a comparison of various initial speeds for earth until it escapes orbit. In Figures (6), (7), and (8) we see the effect of the addition of Jupiter, with its regular mass, ten times its mass, and one thousand times its mass, on earth's orbit around the sun. In Figures (9) and (10) we see the evolution of the full solar system over 250 years, in (11) and (12) of the interior planets given a full system over 50 years. 
+Here we begin by testing the algorithm against the exact two-by-two solutions from the previous in the paper and follow it with tests of computational speed. We then proceed to testing various grid sizes in search of the critical temperature in the infinite limit. The code for these results can be found at my github address as included in the beginning of this paper. In project4.cpp options are included for output of probability distributions, a loop through numbers of monte carlo cycles, and a loop through temperature values. Instructions are included therein.
 
+In Figure (1) we compare the mean energy, mean magnetization, heat capacity, and magnetic susceptibility for the two-by-two case with the exact solutions. In Figure (2) we test the scaling of the algorithm by varying both grid size and the number of monte carlo cycles. In Figures (3) and (4) we see effects of beginning with aligned or unaligned for various temperatures. In Figure (5) we observe the effect on the number of accepted states as a function of monte carlo cycles by varying temperature. In Figures (6) and (7) we plot the probability distributions of the 20-by-20 grid for varying temperatures. In Figures (8) through (11) we see the mean energy, mean magnetization, heat capacity, and magnetic susceptibility as functions of temperature for varying grid sizes. In Figures (12) and (13) we plot the heat capacity and magnetic susceptibility from (10) and (11) with a finer step size in search of the critical temperature for each grid size. In Figure (14) we compile the critical temperatures from the plots of (12) and (13). In Figure (15) we plot the data from (14) and fit linear regressions to retrieve the critical temperature in the infinite limit.
+ 
+\begin{figure}
+\center
+\begin{tabular}{| l | l | l | l | l | l |}
+\hline
+          
+$2^i$     &       cycles      &          $E$/N      &    $|M|$/N   &    $C_v$/N      &     $\chi$/N	\\ \hline
+7       &     128     &  	  -1.96875  &    0.992188   &   0.246094  &    0.0153809 \\ \hline
+8       &     256     &     -1.96875  &   0.990234     & 0.246094    &  0.0269623 \\ \hline
+ 9      &      512     &      -1.98438   &   0.993164    & 0.124023    &  0.0252037\\ \hline
+10     &      1024     &       -1.99609   &   0.999023    & 0.031189    & 0.00194931\\ \hline
+11     &      2048     &  -1.99219   &   0.997803   &  0.0622559   &  0.00535178\\ \hline
+ 12     &      4096     &      -1.99707   &   0.999023   &  0.0234032   &  0.00292587\\ \hline
+13    &       8192     &      -1.9978    &   0.99939    &  0.0175588   &  0.00146335\\ \hline
+14    &      16384     &      -1.99438   &   0.998108   &  0.0447958   &  0.00572298\\ \hline
+15    &      32768     &      -1.99518   &   0.998444   &  0.0384812   &  0.00450691\\ \hline
+16   &       65536     &      -1.99655     &   0.998833   &   0.0275403  &   0.00354985\\ \hline
+ 17   &      131072     &         -1.99582   &   0.998604   & 0.0333773    & 0.00418837\\ \hline
+ 18   &      262144     &       -1.99589   &     0.998604 &    0.0328303 &    0.00425703\\ \hline
+19   &      524288     &      -1.99582   &    0.998618  &     0.033347 &    0.00410651\\ \hline
+20   &     1048576     &      -1.99582     & 0.998609    & 0.0333622     &0.00416172\\ \hline
+\end{tabular}
+\caption{A table summarizing the desired values after a given number of monte carlo cycles. Column one indicates the power to which two was raised to obtain the listed number of cycles. The exact answers from section two for T=1.0, J=1.0 are E = -1.996, M = 0.999, $C_v$ = 0.0322, and $\chi$ = 0.00401. Note that since we've set T=1.0 and J=1.0 that $C_v$ and $\chi$ double numerically as the varience of E and M, respectively. From this table it seems clear we require at least $2^{18}-2^{20}$ monte carlo cycles before we may be confident in the results.}
+\end{figure}
 \begin{figure}
 \centering
 \begin{tabular}{| l | l | l | l | l | l | l |}
 \hline
-n  	 & RK4 & RK4 time [s] & Verlet & Verlet time [s] & V. Rel. Cor & V.RC time[s]  \\ \hline
-100   &  0.77813979  &  0.000188   &   1.004426   & 7.7e-5    & 1.0010571 & 6.3e-5 \\ \hline
-200   &  0.98847564  &  0.000354   &  1.0001543   & 0.000105  & 1.0000138 & 9.2e-5 \\ \hline
-500   &  0.9993386 	 &  0.00061    &  1.0000026   & 0.000313  & 1.0000001 & 0.000244 \\ \hline
-1000   &  0.99991847 &  0.001717   &  1.0000001	  & 0.00052   & 1		  & 0.000493 \\ \hline
-2000   &  0.99998984 &  0.002993   &   1	 	  & 0.00102   & 1		  & 0.000875 \\ \hline
-5000   &  0.99999935 &  0.006268   &   1		  & 0.001993  & 1		  & 0.002277 \\ \hline
-10000  &  0.99999992 &  0.014253   &   1		  & 0.004282  & 1		  & 0.005601 
+$2^i$     &       cycles   & 	time(2)[s]		&time(20)[s]	&time(40)[s]&	time(60)[s]&time(80)[s] 	\\ \hline	
+10    &       1024   &   0.001475  &  0.136543   & 0.552883	&1.22494 	&	2.21758 \\ \hline
+11    &       2048   &   0.002992  &  0.27044    &	1.1052 	&	2.4495 		&	4.45527 \\ \hline
+12    &       4096   &   0.005969  &  0.551546   &	2.19842	&	4.99269 	&	8.92798 \\ \hline
+13    &       8192   &   0.012101  & 	1.12443   &  4.40526 &	9.96672		&	17.7866\\ \hline
+14    &      16384   &   0.024321  &  2.1936 	&	8.86753 &	19.7791 	&	35.4322 \\ \hline
+15    &      32768   &   0.048069  &  4.36856	&	17.6465  &	39.5668 	&	71.1234 \\ \hline
 \end{tabular}
-\caption{A table for the evolution of the circular motion earth-sun system after a period of five years. The exact answer should be a radius of one AU. The number of grid points is given under $n$, with the final radius and computation time given for the RK4, Verlet, and Verlet with relativistic correction provided in the corresponding row. It seems clear that at high enough values of n, the Verlet algorithm is approximately three times faster than the RK4, with the VRC lying between them. This implementation for the RK4 algorithm approaches the eact solution from the bottom, whereas the Verlet approaches from above. An examination of the data over the course of the five years reveals that the radius and velocity remain constant, with their direction perpendicular, so the potential and kinetic energies, as well as the angular momentum, remain constant.}
+\caption{A table summarizing the computation time of the program. The first column indicates the power to which two is raised to obtain the number of cycles. There is a clear linear trend between the number of operations and the computation time, displayed in two ways. First, observe for each column that as the number of cycles is doubled the computation time doubles as well. Second, as the grid size is increased a linear increase in time is observed. From 2 to 20 there is a hundredfold increase in the number of operations per cycle and the time is increased by approximately 100. From 20 to 40, there is a fourfold increase and a near quadrupling in the time. From 40 to 60 there is a 9/4 increase and from 60 to 80 a 16/9 increase both spin counts and computation times. So we see that a tenfold increase in grid size (side length) and cycle count would lead to a thousandfold increase in computation time, one hundred from an increase in spins and ten from cycles.}
 \end{figure}
 \begin{figure}
 \centering
-\includegraphics[width=1.0\textwidth]{coplanar_earthsun.pdf}
-\caption{Here we see the coplanar earth-sun system with no evolution for the sun considered. The earth remains in a near perfect circular orbit given a starting speed of 2$\pi$ AU/yr and a radius of one AU.}
+\includegraphics[width=1.0\textwidth]{n20_meanenergy.pdf}
+\caption{Here we see the mean energy of the 20x20 system plotted as a function of cycles, cycles = $2^x$, while varying the temperature and alignment. We see that there is a clear distinction between the speed of attaining equilibrium for each alignment (random or fully aligned) depending upon the temperature. For T=1.0 the system has near-perfect alignment as its equilibrium so starting the system there is reasonable as the faster method of calculating the mean quantities. For T=2.4, however, the system is only partially aligned so one method is approximately equal in times of the required cycles.}
 \end{figure}
 \begin{figure}
 \centering
-\includegraphics[width=1.0\textwidth]{coplanar_earthsun_v11.pdf}
-\caption{Here we see the coplanar earth-sun system with no evolution for the sun considered. The earth has been given an initial speed of 2.2$\pi$. We observe that the orbit has become noticeable elliptical, with an aphelion of over 1.5 AU and a period of approximately 1.5 years.}
+\includegraphics[width=1.0\textwidth]{n20_meanmag.pdf}
+\caption{Here we see the mean magnetization of the 20x20 system plotted as a function of cycles, cycles = $2^x$, while varying the temperature and alignment. We see that there is a clear distinction between the speed of attaining equilibrium for each alignment (random or fully aligned) depending upon the temperature. For T=1.0 the system has near-perfect alignment as its equilibrium so starting the system there is reasonable as the faster method of calculating the mean quantities. For T=2.4, however, the system is only partially aligned so one method is approximately equal in times of the required cycles.}
 \end{figure}
 \begin{figure}
 \centering
-\includegraphics[width=1.0\textwidth]{coplanar_earthsun_v14.pdf}
-\caption{Here we see the coplanar earth-sun system with no evolution for the sun considered. The earth has been given an initial speed of 2.8$\pi$. The earth's orbit has become widely elliptical, with an aphelion of over fifty AU and an orbital period of approximately 127 years. It has nearly reached escape velocity.}
+\includegraphics[width=1.0\textwidth]{accstates_loglog.pdf}
+\caption{Here we see for a 20x20 grid the number of accepted states as a function of cycles while varying temperature. We see from the slope of the log-log plot that the relationship is clearly linear with the slope increasing as T increases, as indicated by the intercept of the graph. As T $\rightarrow \infty$, the slope of the linear curve should approach 400 as each state becomes more and more similar in terms of probability, making nearly every tested state accepted.}
 \end{figure}
 \begin{figure}
 \centering
-\includegraphics[width=1.0\textwidth]{coplanar_earthsun_vsqrt2.pdf}
-\caption{Here we see the coplanar earth-sun system with no evolution for the sun considered. The earth has been given an initial speed of 2$\sqrt{2}\pi$, which equals the calculated escape velocity. Clearly, the earth has formed a hyperbolic curve and will not be returning to the sun. The calculation shown was an evolution of 200 years, and higher time frames were conducted as verification.}
+\includegraphics[width=1.0\textwidth]{prob_T1.pdf}
+\caption{Here we see the probability distribution for a 20x20 grid with T=1. We see clearly that by far the most likely state is $E$/N = -2. The next most possible state is $E$/N = -1.98 reflecting that the only change from fully aligned to one misaligned involves a shift of eight energy units for the total system. The likelihood quickly decreasing as energy increases.}
 \end{figure}
 \begin{figure}
 \centering
-\includegraphics[width=1.0\textwidth]{coplanar_sej1_radius.pdf}
-\caption{Here we see effect of the coplanar sun-earth-jupiter system on the earth's orbit with no evolution for the sun considered. The planets have each been given their respective mean orbital radius and velocity as initial conditions. We see that while Jupiter provides only small perturbations, they are clearly visible.}
+\includegraphics[width=1.0\textwidth]{prob_vT.pdf}
+\caption{Here we see the probability distributions for a 20x20 grid with varying temperatures. Note that as T increases, the distribution shifts closer to having a mean value of zero and a thinner spread. This matches well the output data since we see a decrease in the variances of both $E$ and $M$ as T increases. This leads to a more focused distribution centered around zero, as we'd expect.}
 \end{figure}
 \begin{figure}
 \centering
-\includegraphics[width=1.0\textwidth]{coplanar_sej10_radius.pdf}
-\caption{Here we see effect of the coplanar sun-earth-jupiter system on the earth's orbit with Jupiter's mass increased tenfold. The planets have each been given their respective mean orbital radius and velocity as initial conditions. We see that an increase in Jupiter's mass provides larger perturbations, but it appears to be periodic and results in a stable orbit for the earth.}
+\includegraphics[width=1.0\textwidth]{meanenergy.pdf}
+\caption{Here we see the mean energy over a range of temperatures with varying grid size. Note that near T=2.25 there is a change in the concavity of the mean energy curve. This is indicative of a phase transition.}
 \end{figure}
 \begin{figure}
 \centering
-\includegraphics[width=1.0\textwidth]{coplanar_sej1000_radius.pdf}
-\caption{Here we see effect of the coplanar sun-earth-jupiter system on the earth's orbit with Jupiter's mass increased thousandfold. The planets have each been given their respective mean orbital radius and velocity as initial conditions. We see that such an increase to Jupiter's mass creates an orbit which, after merely four years, sling shots earth from the solar system. The earth approaches the sun more and more closely during each pass and finally is launched from the solar system. Evolutions for much larger time frames were considered, but this is the best for viewing the initial gain of velocity leading to the expulsion of earth.}
+\includegraphics[width=1.0\textwidth]{meanmag.pdf}
+\caption{Here we see the mean magnetization over a range of temperatures with varying grid size. Note that near T=2.3 there is a change in the concavity of the mean magnetization curve. This is indicative of a phase transition.}
 \end{figure}
 \begin{figure}
 \centering
-\includegraphics[width=1.0\textwidth]{fullss_250years.pdf}
-\caption{Here we see the full solar system with initial conditions given from data on the Jet Propulsion Laboraty's website of March 18, 2016. The evolution is allowed to develop for 250 years see the near full revolution of pluto, the body with the longest orbital period and highest eccentricity. From this scale, we cannot see the inner panets, but we see they must have stable orbits since they have not left the solar system. We see that for a short time pluto is closer to the sun than neptune. The data file shows this much more clearly than the graph.}
+\includegraphics[width=1.0\textwidth]{heatcapacity.pdf}
+\caption{Here we see the heat capacity as a function of temperature for varying grid sizes. We observe that the heat capacity has a peak which shifts leftward as temperature increases, again around T=2.25 - 2.3, again indicative of a phase transition. We will calculate with a finer step size the range between T=2.25 and T=2.35.}
 \end{figure}
 \begin{figure}
 \centering
-\includegraphics[width=1.0\textwidth]{fullss_radii_250years.pdf}
-\caption{Here we see the orbital radii over the full 250 year evolution of the solar system from the previous figure. We see that the planets with the highest eccentricity have the most oscillatory orbits. Pluto clearly comes closer to the sun near the end of the 250 years, so once during its orbit. Also we observe that the approximate period can be determined from graph by measuring the distance from one maximum to the next, or one minimum to the next.}
+\includegraphics[width=1.0\textwidth]{magsus.pdf}
+\caption{Here we see the magnetic susceptibility as a function of temperature for varying grid sizes. We observe that the magnetic susceptibility also has a peak which shifts leftward as temperature increases, again around T=2.25 - 2.3, again indicative of a phase transition. We will calculate with a finer step size the range between T=2.25 and T=2.35.}
 \end{figure}
 \begin{figure}
 \centering
-\includegraphics[width=1.0\textwidth]{fullss_s-m_50years.pdf}
-\caption{Here we see the evolution of the solar system over 50 years, where all bodies were used for the calculation but only the inner have been plotted for clarity. Note that most inner planets have fairly circular orbits, with mercury being the most elliptical. Luna is the earth's moon, very clearly overlapping the orbit of the earth at this scale.}
+\includegraphics[width=1.0\textwidth]{heatcapacity_zoom.pdf}
+\caption{Here we have calculated the heat capacity with a finer step size between T=2.25 and T=2.35 for varying grid sizes. We note that the location of each peak corresponds to a phase transition and mark each critical temperature in Figure (15) in order to find $T_c$ in the infinite grid size limit.}
 \end{figure}
 \begin{figure}
 \centering
-\includegraphics[width=1.0\textwidth]{fullss_radii_s-m_50years.pdf}
-\caption{Here we see the evolution of the solar system over 50 years, where all bodies were used for the calculation but only the inner have been plotted for clarity. We plot the radii versus time in years to get a clear picture of the period and eccentricity of each body in the interior of the solar system. At this length scale we are able to discern each path clearly; however, due to the time scale the periods of mercury and venus are unclear. The data pulls them out clearly, but this graph has been prepared with a time scale sufficient to demonstrate their stability and the periodicity of their orbits.}
+\includegraphics[width=1.0\textwidth]{magsus_zoom.pdf}
+\caption{Here we have calculated the magnetic susceptibility with a finer step size between T=2.25 and T=2.35 for varying grid sizes. We note that the location of each peak corresponds to a phase transition and mark each critical temperature in Figure (15) in order to find $T_c$ in the infinite grid size limit.}
 \end{figure}
+\begin{figure}
+\centering
+\begin{tabular}{| l | l | l |}
+\hline
+Grid Size & $T_c (C_v)$ & $T_c (\chi)$ \\ \hline
+20	&	2.3		& 2.35 \\ \hline
+40 	&	2.275	& 2.325 \\ \hline
+60 	&	2.275	& 2.3 \\ \hline
+80	&	2.2625	& 2.2875	\\ \hline
+\end{tabular}
+\caption{Here we have compiled the observed critical temperatures for increasing grid sizes. We note that as the grid size increases, the critical temperature approaches the exact result of $T_c (n \rightarrow \infty) \approx$ 2.269.}
+\end{figure}
+\begin{figure}
+\centering
+\includegraphics[width=1.0\textwidth]{crittemp.pdf}
+\caption{Here we have plotted $T_c$ as a function of $\frac{1}{n}$ in order to find $T_c$ in the infinite limit. As $n \rightarrow \infty$, $\frac{1}{n} \rightarrow 0$ and $T_c$ will approach the exact solution. From curve fitting the lines, we obtain from the heat capacity that $T_c(n\rightarrow \infty)$ = 2.248 $\pm$ 0.007 and from the magnetic susceptibility that $T_c(n\rightarrow \infty)$ = 2.263 $\pm$ 0.007. We see that the prediction from the magnetic susceptibility agrees within error with the exact result of 2.269.}
+\end{figure}
+
 
 \section{Discussion}
 
-Here we discuss the computational speed and stability of the algorithms, as well as the effects of varying the initial velocity and the effects of other planets on the orbital path of the earth. 
+Here we discuss the accuracy and speed of the algorithm, followed by investigations into varying grid sizes that may find the critical temperature in the infinite limit.
 
-We see clearly that the Verlet algorithm is not only faster but also in this particular implementation seems to propagate a lower error. Verlet runs in one-third the time and propagates error as $h^4$ as opposed with RK4's $h^3$. Further, the Verlet with relativistic corrections rights only slightly slower than the full Verlet algorithm with a slight improvement in error propagation. This is likely due to the necessity of approximating not only the position but also the velocity using the RK4 method. In simpler implementations, RK4 exceeds Verlet in accuracy. It should be noted that this is for the ideal case of circular motion with only the orbiting body being allowed to evolve, and these change as additional bodies are added and allowed to be mobile. The error propagation and relative speed remain similar; however, care must be taken for large systems since many, many more numerical evaluations will be required than for those with fewer bodies. This increase in the number of floating point operations will mean that, while the error propagates the same, the error will sum to be significant much sooner. Consider increasing the steps until a stable solution is found; then, optimize for computation time versus accuracy.
+From Figure (1), we see that while the mean energy and mean magnetization may be found with a number of monte carlo cycles on the order of $2^{10} - 2^{15}$, agreement for the heat capacity and magnetic susceptibility requires monte carlo counts on the order of $2^{18} - 2^{20}$. From Figure (2) we see that the program scales linearly with the number of required operations, both with the number of spins and number of monte carlo cycles. A tenfold increase in grid size results in a hundredfold increase in the number of spins and a hundredfold increase in computation time. Similarly, a tenfold increase in the number of monte carlo cycles results in a tenfold increase in computation time. From Figures (3) and (4) we see that degree of alignment greatly affects the number of monte carlo cycles required before equilibrium is reached. Full alignment for low temperatures and random alignment for high temperatures lead to lower required counts. From Figure (5) we see that the number of accepted states increases with higher temperatures. From Figures (6) and (7) we observe that the center of the probability distribution shifts from $E$/N = -2 for low temperatures toward $E$/N = 0 for high temperatures.
 
-In the case of circular motion, we see that the orbital speed required for the earth for such a path is $2\pi \frac{AU}{yr}$ at a distance of one $AU$. As we increase the speed closer and closer to the escape velocity of $2sqrt(2)\pi \frac{AU}{yr}$, we observe that the orbit becomes more and more elliptical and the period increases. Once the speed is increased to $2\sqrt{2}\pi \frac{AU}{yr}$, the earth finally will escape and cease to orbit the sun.
-
-With the additional of Jupiter to the system we see that the orbital of earth is only slightly perturbed. Instead of a perfectly circular orbit, we see deviations from this path due to Jupiter's sizeable mass, about one one-thousandth that of the sun. As we increase the mass of Jupiter tenfold, the perturbations become larger, but still relatively small. However, if we increase Jupiter's mass to one thousand times the original, near that of the sun, we see that earth suffers from a slingshot effect which ejects it from the solar system just after four years. 
-
-Once all nine original planets and the earth's moon have been added for consideration, we see that the number of required steps increases. If the time under consideration is sufficiently small, one thousand steps per year suffices. If long periods of evolution are considered, such as many hundreds of years or several millenia, the required steps increase. Mercury is clearly the least stable since it has been the first ejected in all calculations performed in development of the code. The paths of each planet can be seen using a three dimensional plot, and the period of each orbit can be extracted from a radius versus time graph or from output option four. The solar system model is stable for millenia given sufficient steps, but computation time quickly increases to large values.
+From Figures (8) through (11) we observe the indications of a phase transition. In the mean energy and mean magnetizatin we see a change in the concavity of the graph and in the heat capacity and magnetic susceptibility we see a peaking of the respective values, each indicative of a phase transition. In order to better find the critical temperatures from these graphs, we replot the heat capacity and magnetic susceptibility in Figures (12) and (13), respectively, with finer steps in temperature. Listing the temperature values corresponding to the peaks as the critical temperatures, Figure (14), we plot the values as a function of one over grid size. From the intercept of each line we are finally able to extract the critical temperature in the infinite limit; the exact solution is $T_c \approx$ 2.269. The heat capacity giving 2.248 $\pm$ 0.007 and the magnetic susceptibility 2.263 $\pm$ 0.007, the latter clearly lying within error of the exact solution. 
 
 \section{Conclusion}
 
-In this project we have developed code for calculating the evolution of a system of bodies given a set of initial positions and velocities, here specialized to the gravitational problem. We investigated the Verlet and Runge-Kutta methodologies for solving this system and found that, for this particular implementation of RK4, the Verlet algorithm requires one-third the time and fewer steps per year, propagating error as $h^4$ as opposed to $h^3$. Using these algorithms, we then applied the code to several variations of the solar system. We found that velocities required for the earth to have a circular orbit or to escape the sun's pull to be $2\pi$ and $2\sqrt{2}\pi \frac{AU}{yr}$, respectively. Further, we find that Jupiter adds only small perturbations to earth's orbit until its mass is increased to near that of the sun, at which point the earth escapes the system. Lastly, the solar system appears to be stable for several millenia as calcualted by this code, which bodes well for us all.
+In this project I develop an algorithm which reproduces the 2D Ising Model for a given grid size and temperature. The code scales linearly with the number of spins and the number of monte carlo cycles; it is reasonably fast for small grid sizes, but it quickly scales to multiple minute computation times for grid sizes approaching one hundred. The algorithm reproduces well the exact solutions from the two-by-two case with $2^20$ monte carlo cycles. By investigating larger grid sizes, 20, 40, 60, and 80, we found the indications of a phase transition; by plotting these against one over the grid size we approximated the infinite solution from the intercept of a linear fit. The magnetic susceptibility fit reproduced the infinite limit within error, with 2.263 $\pm$ 0.007 compared to 2.269 for the exact solution.
 
 \section{References}
 
 [1] M. Hjorth-Jensen. Computational Physics, lecture notes spring 2016. Department of Physics, Michigan State University, 2016. \newline
-[2] Solar System Dynamics. Jet Propulsion Laboratory: California Institute of Technology.  [accessed 18 March 2016; ssd.jpl.nasa.gov/horizons.cgi]
 
 \newpage
 
 \section*{Code Attachment}
+
+\begin{lstlisting}[title={project4.cpp}]
+
+\end{lstlisting}
+\begin{lstlisting}[title={project4.cpp}]
+
+\end{lstlisting}
+\begin{lstlisting}[title={project4.cpp}]
+
+\end{lstlisting}
+\end{document}
+

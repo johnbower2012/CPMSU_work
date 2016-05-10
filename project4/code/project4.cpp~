@@ -41,31 +41,40 @@ int main(int argc, char* argv[]){
 
 	if(choice==0){
 		start = clock();
+
 		cycpow = pow(2,cycles);
+
 		spinadult.evolution(accstates, cycpow);
+
 		cout << endl;
 		cout << cycles << setw(15) << accstates;
+
 		spinadult.print();
+
 		finish = clock();
 		time = (finish - start)/((double) CLOCKS_PER_SEC);
+
 		cout << "time" << endl;
 		cout << setw(15) << time << endl;
 
 		spinadult.reset_statistics();
+
 		cycpow = pow(2,cycles);
 		spinadult.evolution(accstates, cycpow);
+
 		ofile.open(outfilename);
-		ofile << setw(15) << "#E" << setw(15) << "Prob" << endl;
+		ofile << setw(15) << "#E" << setw(15) << "E/N" << setw(15) << "Prob" <<  setw(15) << "count" << endl;
 		for(i=0;i<2*n*n + 1; i++){
-			ofile << setw(15) << (i-n*n)*2 << setw(15) << spinadult.probability[i] << endl;
+			ofile << setw(15) << (i-n*n)*2 << setw(15) << (double) ((i-n*n)*2)/(double) (n*n);
+			ofile << setw(15) << (double) spinadult.probability[i]/(double) cycpow << setw(15) << spinadult.probability[i] << endl;
 		}
 		ofile.close();
 	}
 	if(choice==1){
 		ofile.open(outfilename);
-		ofile << "#cyc" << setw(15) << "accs";
+		ofile << setw(15) << "#i" << setw(15) << "cyc" << setw(15) << "accs" << setw(15) << "time";
 		ofile << setw(15) << "<E>" << setw(15) << "e_v" << setw(15) << "<M>" << setw(15) << "m_v";
-		ofile << setw(15) << "<|M|>" << setw(15) << "Cv" << setw(15) << "Khi" << endl;
+		ofile << setw(15) << "<|M|>" << setw(15) << "m_abs_v" << setw(15) << "Cv" << setw(15) << "Khi" << endl;
 		for(i=0;i<cycles+1;i++){
 			if(align==0){
 				spinadult.spintoddler.randomize();
@@ -74,24 +83,35 @@ int main(int argc, char* argv[]){
 				spinadult.spintoddler.align_up();
 			}
 			spinadult.reset_statistics();
+
 			start = clock();
+
 			cycpow = pow(2,i);
 			spinadult.evolution(accstates, cycpow);
-			ofile << cycpow << setw(15) << accstates;
-			ofile << setw(15) << spinadult.energy_mean << setw(15) << pow(spinadult.e_variance,0.5);
-			ofile << setw(15) << spinadult.magn_mean << setw(15) << pow(spinadult.m_variance,0.5);
-			ofile << setw(15) << spinadult.magn_mean_abs << setw(15) << spinadult.heat_capacity << setw(15) << spinadult.susceptibility << endl;
+
 			finish = clock();
 			time = (finish - start)/((double) CLOCKS_PER_SEC);
+
+			ofile << setw(15) << i << setw(15) << cycpow << setw(15) << accstates << setw(15) << time;
+			ofile << setw(15) << spinadult.energy_mean << setw(15) << spinadult.e_variance;
+			ofile << setw(15) << spinadult.magn_mean << setw(15) << spinadult.m_variance;
+			ofile << setw(15) << spinadult.magn_mean_abs << setw(15) << spinadult.m_abs_variance;
+			ofile << setw(15) << spinadult.heat_capacity << setw(15) << spinadult.susceptibility << endl;
 			cout << setw(15) << i << setw(15) << cycpow << setw(15) << time << " seconds" << endl;
 		}
 		ofile.close();
 	}
 	if(choice==2){
 		ofile.open(outfilename);
-		ofile << "#T" << setw(15) << "accs";
+		ofile << "#T" << setw(15) << "time" << setw(15) << "accs";
 		ofile << setw(15) << "<E>" << setw(15) << "e_v" << setw(15) << "<M>" << setw(15) << "m_v";
-		ofile << setw(15) << "<|M|>" << setw(15) << "Cv" << setw(15) << "Khi" << endl;
+		ofile << setw(15) << "<|M|>" << setw(15) << "m_abs_v" << setw(15) << "Cv" << setw(15) << "Khi" << endl;
+
+		double Tm, TM;
+		cout << "Enter Tmin: ";
+		cin >> Tm;
+		cout << "Enter Tmax: ";
+		cin >> TM;
 
 		cycpow = pow(2,cycles);
 		if(align==0){
@@ -106,16 +126,17 @@ int main(int argc, char* argv[]){
 
 		for(i=0;i<T+1;i++){
 			start = clock();
-			current_T = 2.0 + (0.4/T)*i;
+			current_T = Tm + ((TM-Tm)/T)*(double)i;
 			spinadult.spintoddler.T = current_T;
 			spinadult.reset_statistics();
 			spinadult.evolution(accstates, cycpow);
-			ofile << current_T << setw(15) << accstates;
-			ofile << setw(15) << spinadult.energy_mean << setw(15) << pow(spinadult.e_variance,0.5);
-			ofile << setw(15) << spinadult.magn_mean << setw(15) << pow(spinadult.m_variance,0.5);
-			ofile << setw(15) << spinadult.magn_mean_abs << setw(15) << spinadult.heat_capacity << setw(15) << spinadult.susceptibility << endl;
 			finish = clock();
 			time = (finish - start)/((double) CLOCKS_PER_SEC);
+			ofile << current_T << setw(15) << time << setw(15) << accstates;
+			ofile << setw(15) << spinadult.energy_mean << setw(15) << spinadult.e_variance;
+			ofile << setw(15) << spinadult.magn_mean << setw(15) << spinadult.m_variance;
+			ofile << setw(15) << spinadult.magn_mean_abs << setw(15) << spinadult.m_abs_variance;
+			ofile << setw(15) << spinadult.heat_capacity << setw(15) << spinadult.susceptibility << endl;
 			cout << setw(15) << current_T << setw(15) << accstates << setw(15) << time << " seconds" << endl;
 		}
 		ofile.close();
