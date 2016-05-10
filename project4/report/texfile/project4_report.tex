@@ -738,45 +738,6 @@ void matrix_print(int**& A, int rows, int columns){
 	}
 }
 
-				energy += delta_e;
-				magnetization += spin[x][y]*2;
-				counter++;
-			}
-		}
-		else{
-			spin[x][y] *= -1;
-			energy += delta_e;
-			magnetization += spin[x][y]*2;
-			counter++;
-		}
-
-		energy_mean += energy;
-		energy_sq_mean += energy*energy;
-		magnetization_mean += magnetization;
-		magnetization_sq_mean += magnetization*magnetization;
-		magnetization_mean_absv += abs(magnetization);
-
-		cycles++;
-	}
-
-	energy_mean /= ((double) cycles);
-	magnetization_mean /= ((double) cycles);
-	magnetization_mean_absv /= ((double) cycles);
-	energy_sq_mean /= ((double) cycles);
-	magnetization_sq_mean /= ((double) cycles);
-
-	heat_capacity = beta*beta*(energy_sq_mean - energy_mean*energy_mean);
-	susceptibility = (magnetization_sq_mean - magnetization_mean_absv*magnetization_mean_absv);
-
-	energy_mean /= n_sq;
-	magnetization_mean /= n_sq;
-	magnetization_mean_absv /= n_sq;
-	heat_capacity /= n_sq;
-	susceptibility /= n_sq;
-
-	array_delete(exponential); 
-}
-
 #endif
 \end{lstlisting}
 \begin{lstlisting}[title={spinsystem-library.h}]
