@@ -155,7 +155,7 @@ where we define $\beta$ for convenience and $Z$ as a normalization factor,
 \end{equation}
 With this distribution and the information in Figure (1), we are able to determine the mean energy and magnetization of the system. Summing over all states, the mean energy is 
 \begin{align*}
-<E> &= \frac{1}{Z}\sum\limits^N=16_{i=1} E_i e^{-E_i\beta} \\
+<E> &= \frac{1}{Z}\sum\limits^{N=16}_{i=1} E_i e^{-E_i\beta} \\
 	&= \frac{1}{Z}\bigg( -8Je^{8J\beta} + 2(8J)e^{-8J\beta} + -8Je^{8J\beta} \bigg) \\
 	&= \frac{-16J}{Z}\bigg(e^{8J\beta} - e^{-8J\beta}\bigg) \\
 	&= \frac{-32J}{Z}sinh(8J\beta)
@@ -166,7 +166,7 @@ and the mean magnetization is
 	&= \frac{1}{Z}\bigg( 4e^{8J\beta} + 2(4) - 2(4) - 4e^{8J\beta} \bigg) \\
 	&= 0.
 \end{align*}
-Noting that not only is the mean magentization zero but that any non-zero calculated will vary between negative and positive values of the same magnitude depending upon whether the system aligns up or down, each equal in energy and therefore probability, we instead calculate the mean absolute value of magnetization, as
+Noting that not only is the mean magentization zero but that any non-zero magnetization calculated will vary between negative and positive values of the same magnitude, depending only upon the alignment of the system, with each equal in energy and therefore probability, we instead calculate the mean absolute value of magnetization, as
 \begin{align*}
 <|M|> 	&= \frac{1}{Z}\bigg( 4e^{8J\beta} + 4(2) + 4(2) + 4e^{8J\beta} \bigg) \\
 		&= \frac{-16J}{Z}\bigg(8e^{8J\beta} + 16\bigg) \\
@@ -174,8 +174,8 @@ Noting that not only is the mean magentization zero but that any non-zero calcul
 \end{align*}
 Deriving the partition function as 
 \begin{equation}
-Z = e^{-8J\beta} + 4 + 4 + 2e^{8J\beta} + 4 + e^{-8J\beta} = 12 + 3cosh(8J\beta)
-\end{equation},
+Z = e^{-8J\beta} + 4 + 4 + 2e^{8J\beta} + 4 + e^{-8J\beta} = 12 + 4cosh(8J\beta),
+\end{equation}
 we arrive at our final expressions for the mean energy and mean absolute magentization as
 \begin{equation}
 <E> = -8J\frac{sinh(8J\beta)}{3 + cosh(8J\beta)}
@@ -238,11 +238,11 @@ In this section we discuss and implement an agorithm to calculate the desired qu
 
 In principle calculating the partition function, or weighting function, is straightforward, but in practice it quickly becomes unmanageable. For the two-by-two case there exist only $2^4$ cases to sort through, but as we increase the grid size the number of possible configurations grows exponentially, as $2^{(n^2)}$, so as we reach a twenty-by-twenty grid, we have $2^{400}$ possible configurations, or ~$2.5*10^{120}$. This is far too many configurations to sort through and so we turn to the Metropolis Algorithm and Detailed Balance in order to avoid the need of calculating the partition function.
 
-In order to apply the Metropolis Algorithm we required that two conditions be fulfilled, first that there exist some stationary distribution $\pi$(x) which fulfills the condition of detailed balance, that is that the transition from each state $x$ to each other state $x'$ is reversible,
+In order to apply the Metropolis Algorithm we require that two conditions be fulfilled, first that there exist some stationary distribution $\pi$(x) which fulfills the condition of detailed balance, that is that the transition from each state $x$ to each other state $x'$ is reversible,
 \begin{equation}
 \pi(x)P(x \rightarrow x') = \pi(x')P(x'\rightarrow x),
 \end{equation}
-where P(x $\rightarrow$ x') is the probability of transitioning from a state $x$ to a state $x'$. This is a necessary but not sufficient condition. Secondly we require that the stationary distribution is unique. This condition is met by requiring the system be ergodic, that is that the system must be aperiodic, not return to the same state at fixed intervals, and that it is positive recurrent, that the number of steps for returning to the same state is finite. A simple way to consider this condition is that any one state must be reachable by any another state by a finite number of steps; there can be no closed loops or fixed paths. With these two conditions fulfilled we can begin from the statement of detailed balance to calculate the transition probabilities from one state to another.
+where P(x $\rightarrow$ x') is the probability of transitioning from a state $x$ to a state $x'$. This is a necessary but not sufficient condition. Secondly we require that the stationary distribution is unique. This condition is met by requiring the system be ergodic, that is that the system must be aperiodic, not return to the same state at fixed intervals, and that it is positive recurrent, that the number of steps for returning to the same state is finite. A simple way to consider this condition is that any one state must be reachable by any other state by a finite number of steps; there can be no closed loops or fixed paths. With these two conditions fulfilled we can begin from the statement of detailed balance to calculate the transition probabilities from one state to another.
 
 Beginning from the statement of detailed balance, choosing to represent the unknown distribution $\pi$(x) with $P$(x), we rewrite the equation to obtain
 \begin{equation}
@@ -256,7 +256,7 @@ so that
 \begin{equation}
 \frac{P(x)}{P(x')} = \frac{g(x' \rightarrow x)A(x' \rightarrow x)}{g(x \rightarrow x')A(x \rightarrow x')}.
 \end{equation}
-The simplest method for choosing $g$ is to apply a normal distribution, that is we say the probability of selecting any one state is equal, or one over the total number of states, so that $g(x \rightarrow x')$ = $g(x' \rightarrow x)$, whence
+The simplest method for choosing $g$ is to apply a uniform distribution, that is we say the probability of selecting any one state is equal to any other, or that each is one over the total number of states, so that $g(x \rightarrow x')$ = $g(x' \rightarrow x)$, whence
 \begin{equation}
 \frac{P(x)}{P(x')} = \frac{A(x' \rightarrow x)}{A(x \rightarrow x')}.
 \end{equation}
@@ -278,7 +278,7 @@ so that we have defined the transition probability between any two states.
 
 With our selection distribution, $g$, and our acceptance distribution, $A$, chosen we are able to implement the Monte Carlo method for evolving the system. 
 
-It is simple in theory; we select a spin, $s_i$, according to our distribution $g$, here defined to be normal so each spin is weighted equally, and we test flipping it against our distribution $A$. If flipping the spin will lower or maintain the energy, we accept it. If it will raise the energy, we accept it will probability $e^{-\Delta E\beta}$. If the change is accepted, we flip the spin and update the energy and magnetization accordingly. If it is denied, the system remains as it was. We define a number of such selections and tests equal to the number of spins to be one full Monte Carlo cycle.
+It is simple in theory; we select a spin, $s_i$, according to our distribution $g$, here defined to be uniform so each spin is weighted equally, and we test flipping it against our distribution $A$. If flipping the spin will lower or maintain the energy, we accept it. If it will raise the energy, we accept it will probability $e^{-\Delta E\beta}$. If the change is accepted, we flip the spin and update the energy and magnetization accordingly. If it is denied, the system remains as it was. We define a number of such selections and tests equal to the number of spins to be one full Monte Carlo cycle.
 
 Outling the basic methodology, we
 \begin{enumerate}
@@ -304,17 +304,17 @@ We first generate a matrix of spin values, represented as +1 for spin up and -1 
 
 \begin{enumerate}
 \item[1.]
-Generator random numbers x, y $\in$ [0,n-1] according to a normal distribution. Select spin $s_{xy}$.
+Generator random integers x, y $\in$ [0,n-1] according to a uniform distribution. Select spin $s_{xy}$.
 \item[2.]
 Calculate $\Delta E$.
 \item[3.]
 If $\Delta E \leq$ 0, accept the change. Update the energy and magnetization of the system.
 \item[4.]
-If $\Delta E >$ 0, generator a random number z $\in$ [0.0,1.0] according to a normal distribution. Accept the change if z $\leq e^{-\Delta E\beta}$. Update the system accordingly.
+If $\Delta E >$ 0, generator a random real number z $\in$ [0.0,1.0] according to a uniform distribution. Accept the change if z $\leq e^{-\Delta E\beta}$. Update the system accordingly.
 \item[5.]
 Repeat steps 1-4 $n^2$ times per MC cycle for a square n-by-n grid.
 \item[6.]
-Update the desires mean values.
+Update the desired mean values.
 \item[7.]
 Repeat steps 1-6 for the desired number of MC cycles.
 \item[8.]
@@ -350,7 +350,7 @@ $2^i$     &       cycles      &          $E$/N      &    $|M|$/N   &    $C_v$/N 
 19   &      524288     &      -1.99582   &    0.998618  &     0.033347 &    0.00410651\\ \hline
 20   &     1048576     &      -1.99582     & 0.998609    & 0.0333622     &0.00416172\\ \hline
 \end{tabular}
-\caption{A table summarizing the desired values after a given number of monte carlo cycles. Column one indicates the power to which two was raised to obtain the listed number of cycles. The exact answers from section two for T=1.0, J=1.0 are E = -1.996, M = 0.999, $C_v$ = 0.0322, and $\chi$ = 0.00401. Note that since we've set T=1.0 and J=1.0 that $C_v$ and $\chi$ double numerically as the varience of E and M, respectively. From this table it seems clear we require at least $2^{18}-2^{20}$ monte carlo cycles before we may be confident in the results.}
+\caption{A table summarizing the desired values after a given number of monte carlo cycles. Column one indicates the power to which two was raised to obtain the listed number of cycles. The exact answers from section two for T=1.0, J=1.0 are E = -1.996, M = 0.999, $C_v$ = 0.0322, and $\chi$ = 0.00401. Note that since we've set T=1.0 and J=1.0 that $C_v$ and $\chi$ double numerically as the variance of E and M, respectively. From this table it seems clear we require at least $2^{18}-2^{20}$ monte carlo cycles before we may be confident in the results.}
 \end{figure}
 \begin{figure}
 \centering
@@ -374,7 +374,7 @@ $2^i$     &       cycles   & 	time(2)[s]		&time(20)[s]	&time(40)[s]&	time(60)[s]
 \begin{figure}
 \centering
 \includegraphics[width=1.0\textwidth]{n20_meanmag.pdf}
-\caption{Here we see the mean magnetization of the 20x20 system plotted as a function of cycles, cycles = $2^x$, while varying the temperature and alignment. We see that there is a clear distinction between the speed of attaining equilibrium for each alignment (random or fully aligned) depending upon the temperature. For T=1.0 the system has near-perfect alignment as its equilibrium so starting the system there is reasonable as the faster method of calculating the mean quantities. For T=2.4, however, the system is only partially aligned so one method is approximately equal in times of the required cycles.}
+\caption{Here we see the mean magnetization of the 20x20 system plotted as a function of cycles, cycles = $2^x$, while varying the temperature and alignment. We see that there is a clear distinction between the speed of attaining equilibrium for each alignment (random or fully aligned) depending upon the temperature. For T=1.0 the system has near-perfect alignment as its equilibrium so starting the system there is reasonable as the faster method of calculating the mean quantities. For T=2.4, however, the system is only partially aligned so each method is approximately equal in times of the required cycles.}
 \end{figure}
 \begin{figure}
 \centering
@@ -384,7 +384,7 @@ $2^i$     &       cycles   & 	time(2)[s]		&time(20)[s]	&time(40)[s]&	time(60)[s]
 \begin{figure}
 \centering
 \includegraphics[width=1.0\textwidth]{prob_T1.pdf}
-\caption{Here we see the probability distribution for a 20x20 grid with T=1. We see clearly that by far the most likely state is $E$/N = -2. The next most possible state is $E$/N = -1.98 reflecting that the only change from fully aligned to one misaligned involves a shift of eight energy units for the total system. The likelihood quickly decreasing as energy increases.}
+\caption{Here we see the probability distribution for a 20x20 grid with T=1. We see clearly that by far the most likely state is $E$/N = -2. The next most possible state is $E$/N = -1.98 reflecting that the only change from fully aligned to one misaligned involves a shift of eight energy units for the total system. The likelihood quickly decreases as energy increases.}
 \end{figure}
 \begin{figure}
 \centering
@@ -450,7 +450,7 @@ From Figures (8) through (11) we observe the indications of a phase transition. 
 
 \section{Conclusion}
 
-In this project I develop an algorithm which reproduces the 2D Ising Model for a given grid size and temperature. The code scales linearly with the number of spins and the number of monte carlo cycles; it is reasonably fast for small grid sizes, but it quickly scales to multiple minute computation times for grid sizes approaching one hundred. The algorithm reproduces well the exact solutions from the two-by-two case with $2^20$ monte carlo cycles. By investigating larger grid sizes, 20, 40, 60, and 80, we found the indications of a phase transition; by plotting these against one over the grid size we approximated the infinite solution from the intercept of a linear fit. The magnetic susceptibility fit reproduced the infinite limit within error, with 2.263 $\pm$ 0.007 compared to 2.269 for the exact solution.
+In this project I develop an algorithm which reproduces the 2D Ising Model for a given grid size and temperature. The code scales linearly with the number of spins and the number of monte carlo cycles; it is reasonably fast for small grid sizes, but it quickly scales to multiple minute computation times for grid sizes approaching one hundred. The algorithm reproduces well the exact solutions from the two-by-two case with $2^{20}$ monte carlo cycles. By investigating larger grid sizes, 20, 40, 60, and 80, we found the indications of a phase transition; by plotting these against one over the grid size we approximated the infinite solution from the intercept of a linear fit. The magnetic susceptibility fit reproduced the infinite limit within error, with 2.263 $\pm$ 0.007 compared to 2.269 for the exact solution.
 
 \section{References}
 
